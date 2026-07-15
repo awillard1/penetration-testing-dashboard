@@ -35,7 +35,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from backend.app.models.watch_path import WatchPath
         from sqlalchemy import select
         async with async_session_factory() as session:
-            result = await session.execute(select(WatchPath).where(WatchPath.is_enabled == True))  # noqa: E712
+            result = await session.execute(select(WatchPath).where(WatchPath.is_enabled))  # noqa: E712
             paths = [{"name": wp.name, "path": wp.path, "is_recursive": wp.is_recursive} for wp in result.scalars()]
         start_watchers(paths)
     if settings.open_browser:
