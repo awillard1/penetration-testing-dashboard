@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-export const SEV_COLORS: Record<string, string> = {
+const SEV_COLORS: Record<string, string> = {
   critical: "bg-red-900 text-red-300 border-red-800",
   high: "bg-orange-900 text-orange-300 border-orange-800",
   medium: "bg-yellow-900 text-yellow-300 border-yellow-800",
@@ -8,7 +8,7 @@ export const SEV_COLORS: Record<string, string> = {
   informational: "bg-gray-800 text-gray-300 border-gray-700",
 };
 
-export const STATUS_COLORS: Record<string, string> = {
+const STATUS_COLORS: Record<string, string> = {
   draft: "bg-gray-800 text-gray-300",
   confirmed: "bg-blue-900 text-blue-300",
   "ready for report": "bg-green-900 text-green-300",
