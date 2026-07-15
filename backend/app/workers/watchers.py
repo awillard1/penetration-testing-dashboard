@@ -5,8 +5,11 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+_observer = None
+
 
 def start_watchers(paths: list[dict]) -> None:
+    global _observer
     try:
         from watchdog.observers import Observer
         from watchdog.events import FileSystemEventHandler
@@ -23,13 +26,26 @@ def start_watchers(paths: list[dict]) -> None:
                 logger.info("File event [%s]: %s %s", self.name, event.event_type, event.src_path)
 
     observer = Observer()
+    observer.daemon = True  # don't block process exit
+    scheduled = 0
     for p in paths:
         path_str = p.get("path", "")
         wp = Path(path_str)
         if wp.exists():
             observer.schedule(Handler(p.get("name", path_str)), str(wp), recursive=p.get("is_recursive", True))
             logger.info("Watching: %s", wp)
+            scheduled += 1
         else:
             logger.warning("Watch path does not exist: %s", wp)
-    if paths:
+    if scheduled:
         observer.start()
+        _observer = observer
+
+
+def stop_watchers() -> None:
+    global _observer
+    if _observer is not None and _observer.is_alive():
+        _observer.stop()
+        _observer.join(timeout=5)
+        logger.info("File watcher stopped")
+    _observer = None
