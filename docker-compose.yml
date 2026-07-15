@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8765:8765"
+    environment:
+      - PENTEST_DASHBOARD_HOST=0.0.0.0
+      - PENTEST_DASHBOARD_DATABASE_URL=sqlite:///./data/database/dashboard.db
+      - PENTEST_DASHBOARD_AUTH_MODE=local
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped

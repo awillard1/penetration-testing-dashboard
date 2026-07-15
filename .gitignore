@@ -1,0 +1,63 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+.env
+!.env.example
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Data directories (user-generated)
+data/database/*.db
+data/database/*.db-shm
+data/database/*.db-wal
+data/attachments/*
+data/screenshots/*
+data/imports/*
+data/exports/*
+data/reports/*
+data/backups/*
+data/logs/*
+!data/.gitkeep
+!data/database/.gitkeep
+!data/attachments/.gitkeep
+!data/screenshots/.gitkeep
+!data/imports/.gitkeep
+!data/exports/.gitkeep
+!data/reports/.gitkeep
+!data/backups/.gitkeep
+!data/logs/.gitkeep
+
+# Frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/coverage/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Secrets
+*.pem
+*.key
+*.p12
