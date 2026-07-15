@@ -13,7 +13,7 @@ export default function LinksPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState({ category: "", q: "", favorites: false });
-  const [form, setForm] = useState({ title: "", url: "", category: "reference", description: "", tags: "" });
+  const [form, setForm] = useState({ name: "", url: "", category: "reference", description: "", tags: "" });
 
   const { data: links = [] } = useQuery({ queryKey: ["links", filter], queryFn: () => linksApi.list({ ...(filter.category && { category: filter.category }), ...(filter.q && { q: filter.q }), ...(filter.favorites && { is_favorite: "true" }) }) });
 
@@ -22,7 +22,7 @@ export default function LinksPage() {
   const favMut = useMutation({ mutationFn: ({ id, fav }: { id: string; fav: boolean }) => linksApi.update(id, { is_favorite: fav }), onSuccess: () => qc.invalidateQueries({ queryKey: ["links"] }) });
   const openMut = useMutation({ mutationFn: (id: string) => linksApi.open(id) });
 
-  type Link = { id: string; title: string; url: string; category: string; description?: string; is_favorite: boolean; open_count: number };
+  type Link = { id: string; name: string; url: string; category: string; description?: string; is_favorite: boolean; open_count: number };
   const allLinks = links as Link[];
   const catOpts = [{ value: "", label: "All" }, ...CATEGORIES];
 
@@ -45,7 +45,7 @@ export default function LinksPage() {
             <Link2 size={14} className="text-brand-400 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-white text-sm">{l.title}</span>
+                <span className="font-medium text-white text-sm">{l.name}</span>
                 <span className="text-xs bg-gray-800 text-gray-400 px-1.5 rounded">{l.category}</span>
                 {l.open_count > 0 && <span className="text-xs text-gray-600">{l.open_count}x</span>}
               </div>
@@ -64,13 +64,13 @@ export default function LinksPage() {
       {showModal && (
         <Modal title="Add Link" onClose={() => setShowModal(false)}>
           <div className="space-y-3">
-            <Input label="Title *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} />
+            <Input label="Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <Input label="URL *" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} type="url" placeholder="https://" />
             <Select label="Category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} options={CATEGORIES} />
             <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.title || !form.url}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.name || !form.url}>Save</Button>
             </div>
           </div>
         </Modal>

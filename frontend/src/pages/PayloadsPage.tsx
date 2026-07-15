@@ -14,7 +14,7 @@ export default function PayloadsPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [filter, setFilter] = useState({ category: "", q: "" });
-  const [form, setForm] = useState({ name: "", category: "injection", payload_text: "", description: "", encoding: "none" });
+  const [form, setForm] = useState({ name: "", category: "injection", content: "", description: "", language: "none" });
 
   const { data: payloads = [] } = useQuery({ queryKey: ["payloads", filter], queryFn: () => payloadsApi.list({ ...(filter.category && { category: filter.category }), ...(filter.q && { q: filter.q }) }) });
 
@@ -22,12 +22,12 @@ export default function PayloadsPage() {
   const deleteMut = useMutation({ mutationFn: (id: string) => payloadsApi.remove(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["payloads"] }) });
   const useMut = useMutation({ mutationFn: (id: string) => payloadsApi.use(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["payloads"] }) });
 
-  type Payload = { id: string; name: string; category: string; payload_text: string; encoding: string; usage_count: number };
+  type Payload = { id: string; name: string; category: string; content: string; language: string; usage_count: number };
   const allPayloads = payloads as Payload[];
   const catOpts = [{ value: "", label: "All Categories" }, ...CATEGORIES];
 
   const copyPayload = (p: Payload) => {
-    navigator.clipboard.writeText(p.payload_text).then(() => toast.success("Copied!"));
+    navigator.clipboard.writeText(p.content).then(() => toast.success("Copied!"));
     useMut.mutate(p.id);
   };
 
@@ -49,7 +49,7 @@ export default function PayloadsPage() {
                 <Code2 size={14} className="text-brand-400"/>
                 <span className="font-medium text-white text-sm">{p.name}</span>
                 <span className="text-xs bg-gray-800 text-gray-400 px-1.5 rounded">{p.category}</span>
-                {p.encoding !== "none" && <span className="text-xs bg-yellow-900 text-yellow-300 px-1.5 rounded">{p.encoding}</span>}
+                {p.language && p.language !== "none" && <span className="text-xs bg-yellow-900 text-yellow-300 px-1.5 rounded">{p.language}</span>}
               </div>
               <div className="flex items-center gap-2 text-xs text-gray-600">
                 <span>{p.usage_count}x</span>
@@ -57,7 +57,7 @@ export default function PayloadsPage() {
                 <button onClick={() => deleteMut.mutate(p.id)} className="text-gray-500 hover:text-red-400 p-1"><Trash2 size={12}/></button>
               </div>
             </div>
-            <code className="block bg-gray-950 text-green-300 text-xs p-2 rounded font-mono overflow-x-auto whitespace-pre">{p.payload_text}</code>
+            <code className="block bg-gray-950 text-green-300 text-xs p-2 rounded font-mono overflow-x-auto whitespace-pre">{p.content}</code>
           </div>
         ))}
         {allPayloads.length === 0 && <div className="text-center py-8 text-gray-500">No payloads yet.</div>}
@@ -68,13 +68,13 @@ export default function PayloadsPage() {
             <Input label="Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
             <div className="grid grid-cols-2 gap-3">
               <Select label="Category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} options={CATEGORIES} />
-              <Select label="Encoding" value={form.encoding} onChange={e => setForm(f => ({ ...f, encoding: e.target.value }))} options={ENCODINGS} />
+              <Select label="Encoding" value={form.language} onChange={e => setForm(f => ({ ...f, language: e.target.value }))} options={ENCODINGS} />
             </div>
-            <Textarea label="Payload *" value={form.payload_text} onChange={e => setForm(f => ({ ...f, payload_text: e.target.value }))} rows={5} className="font-mono" />
+            <Textarea label="Payload *" value={form.content} onChange={e => setForm(f => ({ ...f, content: e.target.value }))} rows={5} className="font-mono" />
             <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.name || !form.payload_text}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.name || !form.content}>Save</Button>
             </div>
           </div>
         </Modal>
