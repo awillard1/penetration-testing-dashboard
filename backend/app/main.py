@@ -16,9 +16,10 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.app.api.router import api_router
 from backend.app.config import settings
-from backend.app.database import init_db
+from backend.app.database import engine, init_db
 from backend.app.logging_config import configure_logging
 from backend.app.workers.scheduler import start_scheduler, stop_scheduler
+from backend.app.workers.watchers import start_watchers, stop_watchers
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +30,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("PentestDashboard starting up")
     await init_db()
     start_scheduler()
+    if settings.watcher_enabled:
+        from backend.app.database import async_session_factory
+        from backend.app.models.watch_path import WatchPath
+        from sqlalchemy import select
+        async with async_session_factory() as session:
+            result = await session.execute(select(WatchPath).where(WatchPath.is_enabled == True))  # noqa: E712
+            paths = [{"name": wp.name, "path": wp.path, "is_recursive": wp.is_recursive} for wp in result.scalars()]
+        start_watchers(paths)
     if settings.open_browser:
         url = f"http://{settings.host}:{settings.port}"
         webbrowser.open(url)
     yield
+    stop_watchers()
     stop_scheduler()
+    await engine.dispose()
     logger.info("PentestDashboard shut down")
 
 

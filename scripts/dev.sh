@@ -33,6 +33,16 @@ echo ""
 echo "  Press Ctrl+C to stop both."
 echo ""
 
-cleanup() { kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true; }
+cleanup() {
+  kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true
+  # Give processes up to 5 s to exit gracefully, then force-kill
+  for pid in $BACKEND_PID $FRONTEND_PID; do
+    for _ in 1 2 3 4 5; do
+      kill -0 "$pid" 2>/dev/null || break
+      sleep 1
+    done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null || true
+  done
+}
 trap cleanup EXIT INT TERM
 wait

@@ -20,7 +20,7 @@ export default function ReportsPage() {
   const { data: engagements = [] } = useQuery({ queryKey: ["engagements"], queryFn: () => engagementsApi.list() });
 
   const createMut = useMutation({
-    mutationFn: (data: typeof form) => reportsApi.generate(data.engagement_id, { format: data.format, style: data.style, title: data.title, executive_summary: data.executive_summary }),
+    mutationFn: (data: typeof form) => reportsApi.generate(data.engagement_id, { report_format: data.format, style: data.style, title: data.title, executive_summary: data.executive_summary }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["reports"] }); setShowModal(false); toast.success("Report generated"); },
     onError: () => toast.error("Report generation failed"),
   });
@@ -32,7 +32,7 @@ export default function ReportsPage() {
 
   const downloadReport = (r: Report) => {
     const a = document.createElement("a");
-    a.href = `/api/reports/${r.id}/download`;
+    a.href = reportsApi.downloadUrl(r.id);
     a.download = `${r.title}.${r.format}`;
     a.click();
   };
@@ -58,14 +58,14 @@ export default function ReportsPage() {
                 <td className="px-3 py-2 text-white flex items-center gap-2"><FileText size={13} className="text-brand-400"/>{r.title}</td>
                 <td className="px-3 py-2"><span className="text-xs bg-brand-900/40 text-brand-400 px-1.5 py-0.5 rounded">{r.format.toUpperCase()}</span></td>
                 <td className="px-3 py-2">
-                  {r.status === "ready" ? <span className="text-green-400 text-xs">✓ Ready</span> :
+                  {                  r.status === "complete" ? <span className="text-green-400 text-xs">✓ Ready</span> :
                    r.status === "generating" ? <span className="text-yellow-400 text-xs flex items-center gap-1"><Loader2 size={11} className="animate-spin"/>Generating</span> :
                    <span className="text-red-400 text-xs">Failed</span>}
                 </td>
                 <td className="px-3 py-2 text-gray-400">{formatBytes(r.file_size)}</td>
                 <td className="px-3 py-2 text-gray-500">{new Date(r.created_at).toLocaleDateString()}</td>
                 <td className="px-3 py-2">
-                  {r.status === "ready" && <button onClick={() => downloadReport(r)} className="text-brand-400 hover:text-brand-300 flex items-center gap-1 text-xs"><FileDown size={12}/> Download</button>}
+                  {r.status === "complete" && <button onClick={() => downloadReport(r)} className="text-brand-400 hover:text-brand-300 flex items-center gap-1 text-xs"><FileDown size={12}/> Download</button>}
                 </td>
               </tr>
             ))}

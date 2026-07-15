@@ -21,13 +21,13 @@ export default function ScansPage() {
   const uploadMut = useMutation({
     mutationFn: () => {
       if (!file || !form.engagement_id) throw new Error("Missing file or engagement");
-      return scansApi.upload(form.engagement_id, form.scan_type, file);
+      return scansApi.upload(form.engagement_id, file);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["scans"] }); setFile(null); if (fileRef.current) fileRef.current.value = ""; toast.success("Scan uploaded and imported"); },
     onError: (e: Error) => toast.error(e.message),
   });
 
-  type ScanRecord = { id: string; original_filename: string; scan_type: string; status: string; findings_count?: number; targets_count?: number; created_at: string; errors?: string };
+  type ScanRecord = { id: string; original_filename: string; scan_type: string; status: string; imported_findings?: number; imported_targets?: number; created_at: string; errors?: string };
   const allScans = scans as ScanRecord[];
   const engOpts = [{ value: "", label: "All Engagements" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
   const engCreateOpts = [{ value: "", label: "Select Engagement…" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
@@ -69,8 +69,8 @@ export default function ScansPage() {
                 <td className="px-3 py-2 text-white flex items-center gap-2"><ScanLine size={13} className="text-brand-400"/>{s.original_filename}</td>
                 <td className="px-3 py-2 text-gray-400">{s.scan_type}</td>
                 <td className="px-3 py-2"><div className="flex items-center gap-1">{statusIcon(s.status)}<span className="text-xs text-gray-300">{s.status}</span></div></td>
-                <td className="px-3 py-2 text-gray-400">{s.targets_count ?? "—"}</td>
-                <td className="px-3 py-2 text-gray-400">{s.findings_count ?? "—"}</td>
+                <td className="px-3 py-2 text-gray-400">{s.imported_targets ?? "—"}</td>
+                <td className="px-3 py-2 text-gray-400">{s.imported_findings ?? "—"}</td>
                 <td className="px-3 py-2 text-gray-500">{new Date(s.created_at).toLocaleDateString()}</td>
               </tr>
             ))}

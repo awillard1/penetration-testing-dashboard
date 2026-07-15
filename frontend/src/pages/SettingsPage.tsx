@@ -12,14 +12,14 @@ export default function SettingsPage() {
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [backuping, setBackuping] = useState(false);
   const [showWatchModal, setShowWatchModal] = useState(false);
-  const [watchForm, setWatchForm] = useState({ path: "", label: "", recursive: "true" });
+  const [watchForm, setWatchForm] = useState({ name: "", path: "", is_recursive: "true" });
 
   const { data: settings = [] } = useQuery({ queryKey: ["settings"], queryFn: () => settingsApi.list() });
   const { data: backups = [] } = useQuery({ queryKey: ["backups"], queryFn: () => backupsApi.list() });
   const { data: watchPaths = [] } = useQuery({ queryKey: ["watchPaths"], queryFn: () => watchPathsApi.list() });
 
   const updateMut = useMutation({ mutationFn: ({ key, value }: { key: string; value: string }) => settingsApi.set(key, value), onSuccess: () => { qc.invalidateQueries({ queryKey: ["settings"] }); toast.success("Setting saved"); } });
-  const addWatchMut = useMutation({ mutationFn: (data: typeof watchForm) => watchPathsApi.create({ ...data, recursive: data.recursive === "true" }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["watchPaths"] }); setShowWatchModal(false); toast.success("Watch path added"); } });
+  const addWatchMut = useMutation({ mutationFn: (data: typeof watchForm) => watchPathsApi.create({ ...data, is_recursive: data.is_recursive === "true" }), onSuccess: () => { qc.invalidateQueries({ queryKey: ["watchPaths"] }); setShowWatchModal(false); toast.success("Watch path added"); } });
   const removeWatchMut = useMutation({ mutationFn: (id: string) => watchPathsApi.remove(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["watchPaths"] }) });
 
   const triggerBackup = async () => {
@@ -33,8 +33,8 @@ export default function SettingsPage() {
   };
 
   type Setting = { key: string; value: string; value_type: string; description?: string; is_sensitive: boolean; group_name?: string };
-  type Backup = { id: string; filename: string; size_bytes: number; sha256: string; created_at: string };
-  type WatchPath = { id: string; path: string; label?: string; recursive: boolean; is_active: boolean };
+  type Backup = { id: string; filename: string; file_size: number; sha256: string; created_at: string };
+  type WatchPath = { id: string; path: string; name?: string; is_recursive: boolean; is_enabled: boolean };
 
   const allSettings = settings as Setting[];
   const groups = [...new Set(allSettings.map(s => s.group_name || "General"))];
@@ -88,7 +88,7 @@ export default function SettingsPage() {
             <div key={b.id} className="flex items-center gap-2 text-xs text-gray-400 bg-gray-800 rounded px-2 py-1">
               <CheckCircle size={11} className="text-green-400"/>
               <span className="font-mono flex-1 truncate">{b.filename}</span>
-              <span>{formatBytes(b.size_bytes)}</span>
+              <span>{formatBytes(b.file_size)}</span>
               <span className="text-gray-600">{new Date(b.created_at).toLocaleDateString()}</span>
             </div>
           ))}
@@ -104,10 +104,10 @@ export default function SettingsPage() {
         <div className="space-y-1">
           {(watchPaths as WatchPath[]).map(wp => (
             <div key={wp.id} className="flex items-center gap-2 text-xs bg-gray-800 rounded px-2 py-1.5">
-              <div className={`w-2 h-2 rounded-full ${wp.is_active ? "bg-green-400" : "bg-gray-600"}`}/>
+              <div className={`w-2 h-2 rounded-full ${wp.is_enabled ? "bg-green-400" : "bg-gray-600"}`}/>
               <span className="font-mono text-gray-300 flex-1">{wp.path}</span>
-              {wp.label && <span className="text-gray-500">{wp.label}</span>}
-              {wp.recursive && <span className="text-gray-600 bg-gray-700 px-1 rounded">recursive</span>}
+              {wp.name && <span className="text-gray-500">{wp.name}</span>}
+              {wp.is_recursive && <span className="text-gray-600 bg-gray-700 px-1 rounded">recursive</span>}
               <button onClick={() => removeWatchMut.mutate(wp.id)} className="text-gray-600 hover:text-red-400"><Trash2 size={11}/></button>
             </div>
           ))}
@@ -118,12 +118,12 @@ export default function SettingsPage() {
       {showWatchModal && (
         <Modal title="Add Watch Path" onClose={() => setShowWatchModal(false)}>
           <div className="space-y-3">
+            <Input label="Name *" value={watchForm.name} onChange={e => setWatchForm(f => ({ ...f, name: e.target.value }))} placeholder="Evidence folder" />
             <Input label="Path *" value={watchForm.path} onChange={e => setWatchForm(f => ({ ...f, path: e.target.value }))} placeholder="/path/to/watch or C:\path\to\watch" />
-            <Input label="Label" value={watchForm.label} onChange={e => setWatchForm(f => ({ ...f, label: e.target.value }))} />
-            <Select label="Recursive" value={watchForm.recursive} onChange={e => setWatchForm(f => ({ ...f, recursive: e.target.value }))} options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
+            <Select label="Recursive" value={watchForm.is_recursive} onChange={e => setWatchForm(f => ({ ...f, is_recursive: e.target.value }))} options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowWatchModal(false)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => addWatchMut.mutate(watchForm)} disabled={!watchForm.path}>Add</Button>
+              <Button variant="primary" size="sm" onClick={() => addWatchMut.mutate(watchForm)} disabled={!watchForm.path || !watchForm.name}>Add</Button>
             </div>
           </div>
         </Modal>

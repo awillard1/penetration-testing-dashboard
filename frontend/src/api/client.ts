@@ -137,11 +137,11 @@ export const payloadsApi = {
 
 export const scansApi = {
   list: (params?: object) => getList("/scans", params as Record<string, unknown>),
-  upload: (engagementId: string, scanType: string, file: File) => {
+  upload: (engagementId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
     return api
-      .post(`/scans/upload?engagement_id=${engagementId}&scan_type=${scanType}`, form, {
+      .post(`/scans/upload?engagement_id=${engagementId}`, form, {
         headers: { "Content-Type": "multipart/form-data" },
       })
       .then((r) => r.data);
