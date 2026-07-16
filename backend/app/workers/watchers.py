@@ -10,13 +10,19 @@ _observer = None
 _event_loop: asyncio.AbstractEventLoop | None = None
 
 
-async def _record_file_event(event_type: str, src_path: str, watch_name: str) -> None:
+async def _record_file_event(
+    event_type: str,
+    src_path: str,
+    watch_name: str,
+    engagement_id: str | None = None,
+) -> None:
     """Persist a file-system event as an ActivityEvent in the database."""
     try:
         from backend.app.database import async_session_factory
         from backend.app.models.activity import ActivityEvent
         async with async_session_factory() as session:
             obj = ActivityEvent(
+                engagement_id=engagement_id,
                 event_type=f"file_{event_type}",
                 object_type="file",
                 description=f"{event_type}: {src_path}",
@@ -39,8 +45,14 @@ def start_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = N
         return
 
     class Handler(FileSystemEventHandler):
-        def __init__(self, name: str, watch_file: str | None = None):
+        def __init__(
+            self,
+            name: str,
+            engagement_id: str | None = None,
+            watch_file: str | None = None,
+        ):
             self.name = name
+            self.engagement_id = engagement_id
             self.watch_file = watch_file  # if set, only events for this specific filename
 
         def on_any_event(self, event: FileSystemEvent):
@@ -53,12 +65,18 @@ def start_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = N
             logger.info("File event [%s]: %s %s", self.name, event.event_type, src)
             if _event_loop is not None and _event_loop.is_running():
                 fut = asyncio.run_coroutine_threadsafe(
-                    _record_file_event(event.event_type, src, self.name),
+                    _record_file_event(
+                        event.event_type,
+                        src,
+                        self.name,
+                        self.engagement_id,
+                    ),
                     _event_loop,
                 )
                 fut.add_done_callback(
                     lambda f: logger.error("Failed to record file event: %s", f.exception())
-                    if f.exception() else None
+                    if f.exception()
+                    else None
                 )
 
     observer = Observer()
@@ -71,14 +89,21 @@ def start_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = N
             if wp.is_file():
                 # Watch the parent directory and filter events to this file only
                 observer.schedule(
-                    Handler(p.get("name", path_str), watch_file=wp.name),
+                    Handler(
+                        p.get("name", path_str),
+                        engagement_id=p.get("engagement_id"),
+                        watch_file=wp.name,
+                    ),
                     str(wp.parent),
                     recursive=False,
                 )
                 logger.info("Watching file: %s", wp)
             else:
                 observer.schedule(
-                    Handler(p.get("name", path_str)),
+                    Handler(
+                        p.get("name", path_str),
+                        engagement_id=p.get("engagement_id"),
+                    ),
                     str(wp),
                     recursive=p.get("is_recursive", True),
                 )
