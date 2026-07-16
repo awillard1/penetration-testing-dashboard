@@ -31,7 +31,7 @@ export default function TasksPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); setShowModal(false); toast.success("Task created"); },
   });
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Record<string, unknown> }) => tasksApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: typeof emptyForm }) => tasksApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); setEditingId(null); toast.success("Task updated"); },
   });
   const deleteMut = useMutation({
@@ -142,7 +142,7 @@ export default function TasksPage() {
             <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => updateMut.mutate({ id: editingId, data: form })} disabled={!form.title || !form.engagement_id}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => editingId && updateMut.mutate({ id: editingId, data: form })} disabled={!form.title || !form.engagement_id}>Save</Button>
             </div>
           </div>
         </Modal>

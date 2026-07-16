@@ -21,7 +21,7 @@ export default function LinksPage() {
   const { data: links = [] } = useQuery({ queryKey: ["links", filter], queryFn: () => linksApi.list({ ...(filter.category && { category: filter.category }), ...(filter.q && { q: filter.q }), ...(filter.favorites && { is_favorite: "true" }) }) });
 
   const createMut = useMutation({ mutationFn: (data: typeof form) => linksApi.create(data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["links"] }); setShowModal(false); toast.success("Link saved"); } });
-  const updateMut = useMutation({ mutationFn: ({ id, data }: { id: string; data: unknown }) => linksApi.update(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["links"] }); setEditingId(null); toast.success("Link updated"); } });
+  const updateMut = useMutation({ mutationFn: ({ id, data }: { id: string; data: typeof emptyForm }) => linksApi.update(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["links"] }); setEditingId(null); toast.success("Link updated"); } });
   const deleteMut = useMutation({ mutationFn: (id: string) => linksApi.remove(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["links"] }) });
   const favMut = useMutation({ mutationFn: ({ id, fav }: { id: string; fav: boolean }) => linksApi.update(id, { is_favorite: fav }), onSuccess: () => qc.invalidateQueries({ queryKey: ["links"] }) });
   const openMut = useMutation({ mutationFn: (id: string) => linksApi.open(id) });
@@ -97,7 +97,7 @@ export default function LinksPage() {
             <LinkFormFields />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.url}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => editingId && updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.url}>Save</Button>
             </div>
           </div>
         </Modal>

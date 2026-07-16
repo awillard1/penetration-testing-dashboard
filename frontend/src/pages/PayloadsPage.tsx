@@ -101,7 +101,7 @@ export default function PayloadsPage() {
             <PayloadFormFields />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.content}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => editingId && updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.content}>Save</Button>
             </div>
           </div>
         </Modal>

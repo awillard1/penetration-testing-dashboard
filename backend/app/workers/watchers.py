@@ -52,9 +52,13 @@ def start_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = N
                 return
             logger.info("File event [%s]: %s %s", self.name, event.event_type, src)
             if _event_loop is not None and _event_loop.is_running():
-                asyncio.run_coroutine_threadsafe(
+                fut = asyncio.run_coroutine_threadsafe(
                     _record_file_event(event.event_type, src, self.name),
                     _event_loop,
+                )
+                fut.add_done_callback(
+                    lambda f: logger.error("Failed to record file event: %s", f.exception())
+                    if f.exception() else None
                 )
 
     observer = Observer()

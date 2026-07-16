@@ -35,6 +35,13 @@ async def download_backup(backup_id: str, session: AsyncSession = Depends(get_se
     obj = await get_by_id(session, Backup, backup_id)
     if not obj or not obj.file_path: raise HTTPException(404, "Backup not found")
     from pathlib import Path
-    p = Path(obj.file_path)
+    from backend.app.config import settings
+    p = Path(obj.file_path).resolve()
+    backup_dir = settings.backup_dir.resolve()
+    # Ensure the file is within the expected backups directory (prevent path traversal)
+    try:
+        p.relative_to(backup_dir)
+    except ValueError:
+        raise HTTPException(403, "Access denied")
     if not p.exists(): raise HTTPException(404, "Backup file missing from disk")
     return FileResponse(str(p), filename=p.name, media_type="application/zip")

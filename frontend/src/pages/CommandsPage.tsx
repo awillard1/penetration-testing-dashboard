@@ -133,7 +133,7 @@ export default function CommandsPage() {
             <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
-              <Button variant="primary" size="sm" onClick={() => updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.command_text}>Save</Button>
+              <Button variant="primary" size="sm" onClick={() => editingId && updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.command_text}>Save</Button>
             </div>
           </div>
         </Modal>
