@@ -31,7 +31,7 @@ export default function TasksPage() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); setShowModal(false); toast.success("Task created"); },
   });
   const updateMut = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: typeof emptyForm }) => tasksApi.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<typeof emptyForm> }) => tasksApi.update(id, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["tasks"] }); setEditingId(null); toast.success("Task updated"); },
   });
   const deleteMut = useMutation({
