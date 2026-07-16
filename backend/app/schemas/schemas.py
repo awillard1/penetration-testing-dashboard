@@ -1,10 +1,10 @@
 """Pydantic schemas for all models."""
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator, field_serializer
 
 
 # ── Client ──────────────────────────────────────────────────────────────────
@@ -530,6 +530,15 @@ class ActivityEventRead(BaseModel):
     source: Optional[str] = None
     metadata_json: Optional[str] = None
     created_at: datetime
+
+    @field_serializer("created_at")
+    def serialize_created_at(self, dt: datetime, _info) -> str:
+        # If DB value is naive, treat as UTC; always emit RFC3339 with Z
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        else:
+            dt = dt.astimezone(timezone.utc)
+        return dt.isoformat().replace("+00:00", "Z")
 
 
 # ── TimeEntry ────────────────────────────────────────────────────────────────
