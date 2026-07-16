@@ -33,16 +33,18 @@ pip install --quiet --upgrade pip
 pip install --quiet -r requirements.txt
 ok "Python dependencies installed"
 
-# ── Frontend build ───────────────────────────────────────────────────────────
-if [ ! -d "frontend/dist" ]; then
-    info "Building frontend…"
-    command -v node &>/dev/null || error "Node.js not found. Install Node.js 18+."
-    command -v npm  &>/dev/null || error "npm not found."
-    (cd frontend && npm install --silent && npm run build)
-    ok "Frontend built"
-else
-    ok "Frontend dist already exists (run 'cd frontend && npm run build' to rebuild)"
-fi
+# ── Runtime diagnostics ───────────────────────────────────────────────────────
+info "User: $(id -un) (UID=$(id -u), GID=$(id -g))"
+info "Process: PID=$$ PPID=$PPID"
+info "Executable: $(ps -p $$ -o comm= 2>/dev/null | xargs || echo bash)"
+info "Working dir: $(pwd)"
+
+# ── Frontend build (always rebuild) ───────────────────────────────────────────
+info "Building frontend…"
+command -v node &>/dev/null || error "Node.js not found. Install Node.js 18+."
+command -v npm  &>/dev/null || error "npm not found."
+(cd frontend && npm install --silent && npm run build)
+ok "Frontend rebuilt"
 
 # ── Data directories ─────────────────────────────────────────────────────────
 mkdir -p data/db data/backups data/uploads data/reports data/exports data/logs
