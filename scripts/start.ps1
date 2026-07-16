@@ -22,30 +22,37 @@ Write-Info "Python $PyVer detected"
 
 # ── Virtual environment ───────────────────────────────────────────────────────
 if (-not (Test-Path ".venv")) {
-    Write-Info "Creating virtual environment…"
+    Write-Info "Creating virtual environment..."
     python -m venv .venv
 }
 .\.venv\Scripts\Activate.ps1
 Write-Ok "Virtual environment active"
 
 # ── Python dependencies ───────────────────────────────────────────────────────
-Write-Info "Installing/updating Python dependencies…"
+Write-Info "Installing/updating Python dependencies..."
 pip install --quiet --upgrade pip
 pip install --quiet -r requirements.txt
 Write-Ok "Python dependencies installed"
 
-# ── Frontend build ────────────────────────────────────────────────────────────
-if (-not (Test-Path "frontend\dist")) {
-    Write-Info "Building frontend…"
-    if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Write-Err "Node.js not found. Install Node.js 18+ and add to PATH." }
-    Push-Location frontend
-    npm install --silent
-    npm run build
-    Pop-Location
-    Write-Ok "Frontend built"
-} else {
-    Write-Ok "Frontend dist already exists (run 'cd frontend; npm run build' to rebuild)"
-}
+# ── Runtime diagnostics ───────────────────────────────────────────────────────
+$identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
+$proc = Get-Process -Id $PID
+
+Write-Info "User: $($identity.Name)"
+Write-Info "PID: $PID"
+Write-Info "Process: $($proc.ProcessName)"
+Write-Info "SessionId: $($proc.SessionId)"
+Write-Info "StartTime: $($proc.StartTime)"
+Write-Info "Working dir: $(Get-Location)"
+
+# ── Frontend build (always rebuild) ───────────────────────────────────────────
+Write-Info "Building frontend..."
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { Write-Err "Node.js not found. Install Node.js 18+ and add to PATH." }
+Push-Location frontend
+npm install --silent
+npm run build
+Pop-Location
+Write-Ok "Frontend rebuilt"
 
 # ── Data directories ──────────────────────────────────────────────────────────
 @("data\db","data\backups","data\uploads","data\reports","data\exports","data\logs") | ForEach-Object {
