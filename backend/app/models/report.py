@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.base import Base, TimestampMixin, UUIDMixin
@@ -24,6 +24,7 @@ class Report(Base, UUIDMixin, TimestampMixin):
     is_draft: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     config_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # report options
 

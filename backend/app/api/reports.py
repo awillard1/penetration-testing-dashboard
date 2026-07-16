@@ -29,7 +29,8 @@ async def generate_report(body: ReportCreate, session: AsyncSession = Depends(ge
     obj = await create_obj(session, Report, {**body.model_dump(), "status": "generating", "is_draft": True})
     try:
         file_path = await build_report(session, obj)
-        await update_obj(session, obj, {"file_path": str(file_path), "status": "complete", "generated_at": utcnow()})
+        file_size = file_path.stat().st_size
+        await update_obj(session, obj, {"file_path": str(file_path), "file_size": file_size, "status": "complete", "generated_at": utcnow()})
     except Exception as e:
         await update_obj(session, obj, {"status": "failed"})
         raise HTTPException(500, f"Report generation failed: {e}")

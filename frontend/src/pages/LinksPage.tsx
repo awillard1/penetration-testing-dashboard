@@ -4,20 +4,24 @@ import { linksApi } from "../api/client";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import { Input, Select, Textarea } from "../components/ui/Input";
-import { Plus, Link2, Star, ExternalLink, Trash2 } from "lucide-react";
+import { Plus, Link2, Star, ExternalLink, Trash2, Pencil } from "lucide-react";
 import toast from "react-hot-toast";
 
 const CATEGORIES = ["documentation","tool","reference","exploit","cve","wordlist","cheatsheet","blog","osint","other"].map(v => ({ value: v, label: v.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) }));
 
+const emptyForm = { name: "", url: "", category: "reference", description: "", tags: "" };
+
 export default function LinksPage() {
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [filter, setFilter] = useState({ category: "", q: "", favorites: false });
-  const [form, setForm] = useState({ name: "", url: "", category: "reference", description: "", tags: "" });
+  const [form, setForm] = useState(emptyForm);
 
   const { data: links = [] } = useQuery({ queryKey: ["links", filter], queryFn: () => linksApi.list({ ...(filter.category && { category: filter.category }), ...(filter.q && { q: filter.q }), ...(filter.favorites && { is_favorite: "true" }) }) });
 
   const createMut = useMutation({ mutationFn: (data: typeof form) => linksApi.create(data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["links"] }); setShowModal(false); toast.success("Link saved"); } });
+  const updateMut = useMutation({ mutationFn: ({ id, data }: { id: string; data: unknown }) => linksApi.update(id, data), onSuccess: () => { qc.invalidateQueries({ queryKey: ["links"] }); setEditingId(null); toast.success("Link updated"); } });
   const deleteMut = useMutation({ mutationFn: (id: string) => linksApi.remove(id), onSuccess: () => qc.invalidateQueries({ queryKey: ["links"] }) });
   const favMut = useMutation({ mutationFn: ({ id, fav }: { id: string; fav: boolean }) => linksApi.update(id, { is_favorite: fav }), onSuccess: () => qc.invalidateQueries({ queryKey: ["links"] }) });
   const openMut = useMutation({ mutationFn: (id: string) => linksApi.open(id) });
@@ -28,6 +32,20 @@ export default function LinksPage() {
 
   const openLink = (l: Link) => { window.open(l.url, "_blank", "noopener,noreferrer"); openMut.mutate(l.id); };
 
+  const openEdit = (l: Link) => {
+    setForm({ name: l.name, url: l.url, category: l.category, description: l.description || "", tags: "" });
+    setEditingId(l.id);
+  };
+
+  const LinkFormFields = () => (
+    <>
+      <Input label="Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+      <Input label="URL *" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} type="url" placeholder="https://" />
+      <Select label="Category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} options={CATEGORIES} />
+      <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+    </>
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3">
@@ -36,7 +54,7 @@ export default function LinksPage() {
           <Input placeholder="Search…" value={filter.q} onChange={e => setFilter(f => ({ ...f, q: e.target.value }))} className="w-40" />
           <Select options={catOpts} value={filter.category} onChange={e => setFilter(f => ({ ...f, category: e.target.value }))} />
           <button onClick={() => setFilter(f => ({ ...f, favorites: !f.favorites }))} className={`px-3 py-1.5 rounded text-xs border ${filter.favorites ? "bg-yellow-500/20 border-yellow-500 text-yellow-300" : "border-gray-700 text-gray-400"}`}><Star size={12} className="inline mr-1"/>Favs</button>
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}><Plus size={14}/> Add</Button>
+          <Button variant="primary" size="sm" onClick={() => { setForm(emptyForm); setShowModal(true); }}><Plus size={14}/> Add</Button>
         </div>
       </div>
       <div className="grid gap-2">
@@ -55,6 +73,7 @@ export default function LinksPage() {
             <div className="flex gap-1 flex-shrink-0">
               <button onClick={() => favMut.mutate({ id: l.id, fav: !l.is_favorite })} className={`p-1 ${l.is_favorite ? "text-yellow-400" : "text-gray-600 hover:text-yellow-400"}`}><Star size={12}/></button>
               <button onClick={() => openLink(l)} className="p-1 text-gray-400 hover:text-brand-400"><ExternalLink size={12}/></button>
+              <button onClick={() => openEdit(l)} className="p-1 text-gray-500 hover:text-brand-400"><Pencil size={12}/></button>
               <button onClick={() => deleteMut.mutate(l.id)} className="p-1 text-gray-500 hover:text-red-400"><Trash2 size={12}/></button>
             </div>
           </div>
@@ -64,13 +83,21 @@ export default function LinksPage() {
       {showModal && (
         <Modal title="Add Link" onClose={() => setShowModal(false)}>
           <div className="space-y-3">
-            <Input label="Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <Input label="URL *" value={form.url} onChange={e => setForm(f => ({ ...f, url: e.target.value }))} type="url" placeholder="https://" />
-            <Select label="Category" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} options={CATEGORIES} />
-            <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} />
+            <LinkFormFields />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
               <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.name || !form.url}>Save</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {editingId && (
+        <Modal title="Edit Link" onClose={() => setEditingId(null)}>
+          <div className="space-y-3">
+            <LinkFormFields />
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>Cancel</Button>
+              <Button variant="primary" size="sm" onClick={() => updateMut.mutate({ id: editingId, data: form })} disabled={!form.name || !form.url}>Save</Button>
             </div>
           </div>
         </Modal>

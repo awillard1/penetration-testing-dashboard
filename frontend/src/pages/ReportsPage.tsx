@@ -25,7 +25,7 @@ export default function ReportsPage() {
     onError: () => toast.error("Report generation failed"),
   });
 
-  type Report = { id: string; title: string; format: string; status: string; file_size?: number; created_at: string; engagement_id: string };
+  type Report = { id: string; title: string; report_format: string; status: string; file_size?: number; created_at: string; engagement_id: string };
   const allReports = reports as Report[];
   const engOpts = [{ value: "", label: "All" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
   const engCreateOpts = [{ value: "", label: "Select…" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
@@ -33,7 +33,7 @@ export default function ReportsPage() {
   const downloadReport = (r: Report) => {
     const a = document.createElement("a");
     a.href = reportsApi.downloadUrl(r.id);
-    a.download = `${r.title}.${r.format}`;
+    a.download = `${r.title}.${r.report_format}`;
     a.click();
   };
 
@@ -56,7 +56,7 @@ export default function ReportsPage() {
             {allReports.map(r => (
               <tr key={r.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
                 <td className="px-3 py-2 text-white flex items-center gap-2"><FileText size={13} className="text-brand-400"/>{r.title}</td>
-                <td className="px-3 py-2"><span className="text-xs bg-brand-900/40 text-brand-400 px-1.5 py-0.5 rounded">{r.format.toUpperCase()}</span></td>
+                <td className="px-3 py-2"><span className="text-xs bg-brand-900/40 text-brand-400 px-1.5 py-0.5 rounded">{r.report_format.toUpperCase()}</span></td>
                 <td className="px-3 py-2">
                   {                  r.status === "complete" ? <span className="text-green-400 text-xs">✓ Ready</span> :
                    r.status === "generating" ? <span className="text-yellow-400 text-xs flex items-center gap-1"><Loader2 size={11} className="animate-spin"/>Generating</span> :

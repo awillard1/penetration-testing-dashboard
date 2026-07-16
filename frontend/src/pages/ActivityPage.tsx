@@ -16,7 +16,7 @@ const ENTITY_ICONS: Record<string, React.ReactNode> = {
 export default function ActivityPage() {
   const { data: activities = [] } = useQuery({ queryKey: ["activity"], queryFn: () => activityApi.list({ per_page: 200 }) });
 
-  type ActivityRecord = { id: string; action: string; entity_type: string; entity_id?: string; entity_label?: string; performed_by?: string; details?: string; created_at: string };
+  type ActivityRecord = { id: string; event_type: string; object_type?: string; object_id?: string; actor?: string; description?: string; created_at: string };
 
   const groupByDate = (items: ActivityRecord[]) => {
     const groups: Record<string, ActivityRecord[]> = {};
@@ -31,10 +31,10 @@ export default function ActivityPage() {
   const allActivity = activities as ActivityRecord[];
   const grouped = groupByDate(allActivity);
 
-  const actionColor = (action: string) => {
-    if (action.includes("create") || action.includes("add")) return "text-green-400 bg-green-900";
-    if (action.includes("delete") || action.includes("remove")) return "text-red-400 bg-red-900";
-    if (action.includes("update") || action.includes("edit")) return "text-blue-400 bg-blue-900";
+  const actionColor = (eventType: string) => {
+    if (eventType.includes("create") || eventType.includes("add")) return "text-green-400 bg-green-900";
+    if (eventType.includes("delete") || eventType.includes("remove")) return "text-red-400 bg-red-900";
+    if (eventType.includes("update") || eventType.includes("edit") || eventType.includes("change")) return "text-blue-400 bg-blue-900";
     return "text-gray-400 bg-gray-800";
   };
 
@@ -47,16 +47,15 @@ export default function ActivityPage() {
           <div className="space-y-1">
             {items.map(a => (
               <div key={a.id} className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-2 flex items-start gap-3">
-                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${actionColor(a.action)}`}>
-                  {ENTITY_ICONS[a.entity_type] || <Activity size={11}/>}
+                <div className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center mt-0.5 ${actionColor(a.event_type)}`}>
+                  {ENTITY_ICONS[a.object_type || ""] || <Activity size={11}/>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-gray-200">
-                    <span className={`text-xs px-1.5 py-0.5 rounded mr-2 ${actionColor(a.action)}`}>{a.action}</span>
-                    <span className="text-gray-400">{a.entity_type}</span>
-                    {a.entity_label && <span className="text-white ml-1">"{a.entity_label}"</span>}
+                    <span className={`text-xs px-1.5 py-0.5 rounded mr-2 ${actionColor(a.event_type)}`}>{a.event_type.replace(/_/g, " ")}</span>
+                    {a.object_type && <span className="text-gray-400">{a.object_type}</span>}
                   </div>
-                  {a.details && <div className="text-xs text-gray-500 mt-0.5">{a.details}</div>}
+                  {a.description && <div className="text-xs text-gray-500 mt-0.5">{a.description}</div>}
                 </div>
                 <div className="text-xs text-gray-600 flex-shrink-0">{new Date(a.created_at).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</div>
               </div>

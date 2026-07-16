@@ -4,7 +4,7 @@ import { settingsApi, backupsApi, watchPathsApi } from "../api/client";
 import Button from "../components/ui/Button";
 import Modal from "../components/ui/Modal";
 import { Input, Select } from "../components/ui/Input";
-import { Settings, Save, HardDrive, Folder, Plus, Trash2, CheckCircle, Loader2 } from "lucide-react";
+import { Settings, Save, HardDrive, Folder, Plus, Trash2, CheckCircle, Loader2, Download } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function SettingsPage() {
@@ -90,6 +90,7 @@ export default function SettingsPage() {
               <span className="font-mono flex-1 truncate">{b.filename}</span>
               <span>{formatBytes(b.file_size)}</span>
               <span className="text-gray-600">{new Date(b.created_at).toLocaleDateString()}</span>
+              <a href={backupsApi.downloadUrl(b.id)} download={b.filename} className="text-brand-400 hover:text-brand-300 flex items-center gap-0.5 ml-1"><Download size={11}/></a>
             </div>
           ))}
           {(backups as Backup[]).length === 0 && <div className="text-center py-2 text-gray-600">No backups yet</div>}
@@ -119,8 +120,8 @@ export default function SettingsPage() {
         <Modal title="Add Watch Path" onClose={() => setShowWatchModal(false)}>
           <div className="space-y-3">
             <Input label="Name *" value={watchForm.name} onChange={e => setWatchForm(f => ({ ...f, name: e.target.value }))} placeholder="Evidence folder" />
-            <Input label="Path *" value={watchForm.path} onChange={e => setWatchForm(f => ({ ...f, path: e.target.value }))} placeholder="/path/to/watch or C:\path\to\watch" />
-            <Select label="Recursive" value={watchForm.is_recursive} onChange={e => setWatchForm(f => ({ ...f, is_recursive: e.target.value }))} options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
+            <Input label="Path * (file or directory)" value={watchForm.path} onChange={e => setWatchForm(f => ({ ...f, path: e.target.value }))} placeholder="/path/to/dir or /path/to/file.txt" />
+            <Select label="Recursive (directories only)" value={watchForm.is_recursive} onChange={e => setWatchForm(f => ({ ...f, is_recursive: e.target.value }))} options={[{ value: "true", label: "Yes" }, { value: "false", label: "No" }]} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowWatchModal(false)}>Cancel</Button>
               <Button variant="primary" size="sm" onClick={() => addWatchMut.mutate(watchForm)} disabled={!watchForm.path || !watchForm.name}>Add</Button>

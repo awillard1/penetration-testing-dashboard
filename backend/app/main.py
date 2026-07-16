@@ -1,6 +1,7 @@
 """PentestDashboard backend application entry point."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import sys
 import webbrowser
@@ -34,10 +35,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from backend.app.database import async_session_factory
         from backend.app.models.watch_path import WatchPath
         from sqlalchemy import select
+        loop = asyncio.get_event_loop()
         async with async_session_factory() as session:
             result = await session.execute(select(WatchPath).where(WatchPath.is_enabled))  # noqa: E712
             paths = [{"name": wp.name, "path": wp.path, "is_recursive": wp.is_recursive} for wp in result.scalars()]
-        start_watchers(paths)
+        start_watchers(paths, loop=loop)
     if settings.open_browser:
         url = f"http://{settings.host}:{settings.port}"
         webbrowser.open(url)

@@ -174,6 +174,7 @@ export const reportsApi = {
 export const backupsApi = {
   list: () => getList("/backups"),
   trigger: () => api.post("/backups/create").then((r) => r.data),
+  downloadUrl: (id: string) => `/api/v1/backups/${id}/download`,
 };
 
 export const watchPathsApi = {

@@ -1,7 +1,9 @@
 """Watch paths API."""
 from __future__ import annotations
+import asyncio
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database import get_session
 from backend.app.models.watch_path import WatchPath
@@ -9,6 +11,19 @@ from backend.app.schemas.schemas import WatchPathCreate, WatchPathRead, WatchPat
 from backend.app.utils.crud import create_obj, delete_obj, get_by_id, list_all, update_obj
 
 router = APIRouter()
+
+
+async def _reload_watchers(session: AsyncSession) -> None:
+    """Restart file watchers with the current enabled watch paths from the database."""
+    from backend.app.config import settings
+    from backend.app.workers.watchers import restart_watchers
+    if not settings.watcher_enabled:
+        return
+    result = await session.execute(select(WatchPath).where(WatchPath.is_enabled))  # noqa: E712
+    paths = [{"name": wp.name, "path": wp.path, "is_recursive": wp.is_recursive} for wp in result.scalars()]
+    loop = asyncio.get_event_loop()
+    restart_watchers(paths, loop=loop)
+
 
 @router.get("", response_model=list[WatchPathRead])
 async def list_watch_paths(
@@ -24,7 +39,9 @@ async def list_watch_paths(
 
 @router.post("", response_model=WatchPathRead, status_code=201)
 async def create_watch_path(body: WatchPathCreate, session: AsyncSession = Depends(get_session)):
-    return await create_obj(session, WatchPath, body.model_dump())
+    obj = await create_obj(session, WatchPath, body.model_dump())
+    await _reload_watchers(session)
+    return obj
 
 @router.get("/{wp_id}", response_model=WatchPathRead)
 async def get_watch_path(wp_id: str, session: AsyncSession = Depends(get_session)):
@@ -36,10 +53,13 @@ async def get_watch_path(wp_id: str, session: AsyncSession = Depends(get_session
 async def update_watch_path(wp_id: str, body: WatchPathUpdate, session: AsyncSession = Depends(get_session)):
     obj = await get_by_id(session, WatchPath, wp_id)
     if not obj: raise HTTPException(404, "Watch path not found")
-    return await update_obj(session, obj, body.model_dump(exclude_unset=True))
+    result = await update_obj(session, obj, body.model_dump(exclude_unset=True))
+    await _reload_watchers(session)
+    return result
 
 @router.delete("/{wp_id}", status_code=204)
 async def delete_watch_path(wp_id: str, session: AsyncSession = Depends(get_session)):
     obj = await get_by_id(session, WatchPath, wp_id)
     if not obj: raise HTTPException(404, "Watch path not found")
     await delete_obj(session, obj)
+    await _reload_watchers(session)

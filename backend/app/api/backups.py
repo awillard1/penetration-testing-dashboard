@@ -1,6 +1,7 @@
 """Backups API."""
 from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database import get_session
 from backend.app.models.backup import Backup
@@ -28,3 +29,12 @@ async def get_backup(backup_id: str, session: AsyncSession = Depends(get_session
     obj = await get_by_id(session, Backup, backup_id)
     if not obj: raise HTTPException(404, "Backup not found")
     return obj
+
+@router.get("/{backup_id}/download")
+async def download_backup(backup_id: str, session: AsyncSession = Depends(get_session)):
+    obj = await get_by_id(session, Backup, backup_id)
+    if not obj or not obj.file_path: raise HTTPException(404, "Backup not found")
+    from pathlib import Path
+    p = Path(obj.file_path)
+    if not p.exists(): raise HTTPException(404, "Backup file missing from disk")
+    return FileResponse(str(p), filename=p.name, media_type="application/zip")

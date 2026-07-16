@@ -593,6 +593,7 @@ class ReportRead(ReportBase):
     status: str
     is_draft: bool
     file_path: Optional[str] = None
+    file_size: Optional[int] = None
     generated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
