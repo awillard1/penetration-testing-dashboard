@@ -1,13 +1,46 @@
-"""File system watcher (optional, uses watchdog)."""
+"""Filesystem watcher supporting Windows, WSL UNC paths, and asyncio."""
+
 from __future__ import annotations
+
 import asyncio
 import logging
+import os
+import threading
+import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_observer = None
 _event_loop: asyncio.AbstractEventLoop | None = None
+_stop_event = threading.Event()
+_watcher_threads: list[threading.Thread] = []
+
+
+@dataclass(frozen=True)
+class FileState:
+    exists: bool
+    size: int | None = None
+    mtime_ns: int | None = None
+    inode: int | None = None
+
+
+def _get_file_state(path: Path) -> FileState:
+    try:
+        stat_result = path.stat()
+
+        return FileState(
+            exists=True,
+            size=stat_result.st_size,
+            mtime_ns=stat_result.st_mtime_ns,
+            inode=getattr(stat_result, "st_ino", None),
+        )
+    except FileNotFoundError:
+        return FileState(exists=False)
+    except OSError:
+        logger.exception("Unable to stat watched file: %s", path)
+        return FileState(exists=False)
 
 
 async def _record_file_event(
@@ -16,10 +49,10 @@ async def _record_file_event(
     watch_name: str,
     engagement_id: str | None = None,
 ) -> None:
-    """Persist a file-system event as an ActivityEvent in the database."""
     try:
         from backend.app.database import async_session_factory
         from backend.app.models.activity import ActivityEvent
+
         async with async_session_factory() as session:
             obj = ActivityEvent(
                 engagement_id=engagement_id,
@@ -28,104 +61,181 @@ async def _record_file_event(
                 description=f"{event_type}: {src_path}",
                 source=f"watcher:{watch_name}",
             )
+
             session.add(obj)
             await session.commit()
+
     except Exception:
         logger.exception("Failed to record file event for %s", src_path)
 
 
-def start_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = None) -> None:
-    global _observer, _event_loop
-    _event_loop = loop
-    try:
-        from watchdog.observers import Observer
-        from watchdog.events import FileSystemEventHandler, FileSystemEvent
-    except ImportError:
-        logger.warning("watchdog not installed; file watching disabled")
+def _submit_event(
+    event_type: str,
+    path: Path,
+    watch_name: str,
+    engagement_id: str | None,
+) -> None:
+    logger.info(
+        "File event [%s]: %s %s",
+        watch_name,
+        event_type,
+        path,
+    )
+
+    loop = _event_loop
+
+    if loop is None:
+        logger.error("No asyncio event loop configured")
         return
 
-    class Handler(FileSystemEventHandler):
-        def __init__(
-            self,
-            name: str,
-            engagement_id: str | None = None,
-            watch_file: str | None = None,
+    if loop.is_closed():
+        logger.error("Asyncio event loop is closed")
+        return
+
+    if not loop.is_running():
+        logger.error("Asyncio event loop is not running")
+        return
+
+    future = asyncio.run_coroutine_threadsafe(
+        _record_file_event(
+            event_type=event_type,
+            src_path=str(path),
+            watch_name=watch_name,
+            engagement_id=engagement_id,
+        ),
+        loop,
+    )
+
+    def handle_completion(completed_future) -> None:
+        try:
+            completed_future.result()
+        except asyncio.CancelledError:
+            pass
+        except Exception:
+            logger.exception(
+                "Failed to persist file event for %s",
+                path,
+            )
+
+    future.add_done_callback(handle_completion)
+
+
+def _watch_single_file(
+    path: Path,
+    watch_name: str,
+    engagement_id: str | None,
+    interval: float,
+) -> None:
+    previous = _get_file_state(path)
+
+    logger.info(
+        "Starting direct file poller: path=%s initial_state=%s",
+        path,
+        previous,
+    )
+
+    while not _stop_event.wait(interval):
+        current = _get_file_state(path)
+
+        if current == previous:
+            continue
+
+        if not previous.exists and current.exists:
+            event_type = "created"
+
+        elif previous.exists and not current.exists:
+            event_type = "deleted"
+
+        elif (
+            previous.inode is not None
+            and current.inode is not None
+            and previous.inode != current.inode
         ):
-            self.name = name
-            self.engagement_id = engagement_id
-            self.watch_file = watch_file  # if set, only events for this specific filename
+            event_type = "replaced"
 
-        def on_any_event(self, event: FileSystemEvent):
-            if event.is_directory:
-                return
-            src = event.src_path
-            # If watching a specific file, ignore events for other files
-            if self.watch_file and Path(src).name != self.watch_file:
-                return
-            logger.info("File event [%s]: %s %s", self.name, event.event_type, src)
-            if _event_loop is not None and _event_loop.is_running():
-                fut = asyncio.run_coroutine_threadsafe(
-                    _record_file_event(
-                        event.event_type,
-                        src,
-                        self.name,
-                        self.engagement_id,
-                    ),
-                    _event_loop,
-                )
-                fut.add_done_callback(
-                    lambda f: logger.error("Failed to record file event: %s", f.exception())
-                    if f.exception()
-                    else None
-                )
-
-    observer = Observer()
-    observer.daemon = True  # don't block process exit
-    scheduled = 0
-    for p in paths:
-        path_str = p.get("path", "")
-        wp = Path(path_str)
-        if wp.exists():
-            if wp.is_file():
-                # Watch the parent directory and filter events to this file only
-                observer.schedule(
-                    Handler(
-                        p.get("name", path_str),
-                        engagement_id=p.get("engagement_id"),
-                        watch_file=wp.name,
-                    ),
-                    str(wp.parent),
-                    recursive=False,
-                )
-                logger.info("Watching file: %s", wp)
-            else:
-                observer.schedule(
-                    Handler(
-                        p.get("name", path_str),
-                        engagement_id=p.get("engagement_id"),
-                    ),
-                    str(wp),
-                    recursive=p.get("is_recursive", True),
-                )
-                logger.info("Watching directory: %s", wp)
-            scheduled += 1
         else:
-            logger.warning("Watch path does not exist: %s", wp)
-    if scheduled:
-        observer.start()
-        _observer = observer
+            event_type = "modified"
+
+        logger.debug(
+            "File state changed: path=%s previous=%s current=%s",
+            path,
+            previous,
+            current,
+        )
+
+        _submit_event(
+            event_type=event_type,
+            path=path,
+            watch_name=watch_name,
+            engagement_id=engagement_id,
+        )
+
+        previous = current
+
+    logger.info("File poller stopped: %s", path)
+
+
+def start_watchers(
+    paths: list[dict[str, Any]],
+    loop: asyncio.AbstractEventLoop | None = None,
+) -> None:
+    global _event_loop
+
+    _event_loop = loop
+    _stop_event.clear()
+
+    for config in paths:
+        path_str = str(config.get("path", "")).strip()
+
+        if not path_str:
+            logger.warning("Ignoring watcher with an empty path")
+            continue
+
+        path = Path(path_str)
+        watch_name = str(config.get("name") or path_str)
+        engagement_id = config.get("engagement_id")
+        interval = float(config.get("poll_interval", 1.0))
+
+        if path.is_dir():
+            logger.warning(
+                "Direct polling requires a file path, not a directory: %s",
+                path,
+            )
+            continue
+
+        thread = threading.Thread(
+            target=_watch_single_file,
+            args=(
+                path,
+                watch_name,
+                engagement_id,
+                interval,
+            ),
+            name=f"file-poller-{len(_watcher_threads) + 1}",
+            daemon=True,
+        )
+
+        thread.start()
+        _watcher_threads.append(thread)
 
 
 def stop_watchers() -> None:
-    global _observer
-    if _observer is not None and _observer.is_alive():
-        _observer.stop()
-        _observer.join(timeout=5)
-        logger.info("File watcher stopped")
-    _observer = None
+    global _event_loop
+
+    _stop_event.set()
+
+    for thread in _watcher_threads:
+        thread.join(timeout=5)
+
+    _watcher_threads.clear()
+    _event_loop = None
+
+    logger.info("All file pollers stopped")
 
 
-def restart_watchers(paths: list[dict], loop: asyncio.AbstractEventLoop | None = None) -> None:
-    """Stop any running watcher and start fresh with the given paths."""
+def restart_watchers(
+    paths: list[dict[str, Any]],
+    loop: asyncio.AbstractEventLoop | None = None,
+) -> None:
     stop_watchers()
     start_watchers(paths, loop=loop)
