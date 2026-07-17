@@ -71,7 +71,7 @@ export default function MarkdownEditor({ label, value, onChange, placeholder, ro
                   </option>
                 ))}
               </select>
-              <ToolbarButton onClick={() => insertText(selectedInsert)}>Insert</ToolbarButton>
+              <ToolbarButton onClick={() => insertText(selectedInsert)} disabled={!selectedInsert}>Insert</ToolbarButton>
             </>
           )}
           <button
@@ -119,12 +119,13 @@ export default function MarkdownEditor({ label, value, onChange, placeholder, ro
   );
 }
 
-function ToolbarButton({ children, onClick }: { children: string; onClick: () => void }) {
+function ToolbarButton({ children, onClick, disabled = false }: { children: string; onClick: () => void; disabled?: boolean }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-[11px] px-2 py-1 rounded text-gray-300 hover:bg-gray-700"
+      disabled={disabled}
+      className={clsx("text-[11px] px-2 py-1 rounded text-gray-300 hover:bg-gray-700", disabled && "opacity-40 cursor-not-allowed hover:bg-transparent")}
     >
       {children}
     </button>

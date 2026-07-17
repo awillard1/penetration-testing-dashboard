@@ -82,8 +82,9 @@ async def download_evidence(ev_id: str, session: AsyncSession = Depends(get_sess
         raise HTTPException(404, "Evidence not found")
     if not obj.file_path:
         raise HTTPException(404, "No file available for this evidence item")
+    base_dir = settings.attachment_dir.resolve()
     file_path = Path(obj.file_path).resolve()
-    if settings.attachment_dir.resolve() not in file_path.parents:
+    if not file_path.is_relative_to(base_dir):
         raise HTTPException(403, "Invalid file path")
     if not file_path.exists() or not file_path.is_file():
         raise HTTPException(404, "Evidence file not found")

@@ -5,6 +5,7 @@ import { SeverityBadge, StatusBadge } from "../components/ui/Badge";
 import Button from "../components/ui/Button";
 import { Select } from "../components/ui/Input";
 import MarkdownEditor from "../components/ui/MarkdownEditor";
+import Modal from "../components/ui/Modal";
 import toast from "react-hot-toast";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
@@ -19,6 +20,7 @@ export default function FindingDetailPage() {
   const qc = useQueryClient();
   const { data: finding } = useQuery({ queryKey: ["finding", id], queryFn: () => findingsApi.get(id!) });
   const [editing, setEditing] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const { data: engagementEvidence = [] } = useQuery({
     queryKey: ["evidence", "finding-editor", finding?.engagement_id],
@@ -73,11 +75,7 @@ export default function FindingDetailPage() {
           <Button
             variant="danger"
             size="sm"
-            onClick={() => {
-              if (window.confirm("Delete this finding? This action cannot be undone.")) {
-                deleteMut.mutate();
-              }
-            }}
+            onClick={() => setShowDeleteModal(true)}
             disabled={deleteMut.isPending}
           >
             Delete
@@ -105,6 +103,26 @@ export default function FindingDetailPage() {
           {finding.remediation && <Section title="Remediation" content={finding.remediation} />}
           {finding.references && <Section title="References" content={finding.references} />}
         </div>
+      )}
+      {showDeleteModal && (
+        <Modal title="Delete Finding" onClose={() => setShowDeleteModal(false)} width="max-w-md">
+          <div className="space-y-4">
+            <p className="text-sm text-gray-300">
+              Delete <span className="font-semibold text-white">{finding.title}</span>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => deleteMut.mutate()}
+                disabled={deleteMut.isPending}
+              >
+                {deleteMut.isPending ? "Deleting..." : "Delete Finding"}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
