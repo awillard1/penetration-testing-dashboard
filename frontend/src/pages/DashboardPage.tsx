@@ -2,8 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { engagementsApi, settingsApi } from "../api/client";
 import { StatusBadge } from "../components/ui/Badge";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { Shield, Target, AlertTriangle, FileImage, Key, Radar, CheckSquare, Activity } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from "recharts";
+import { Shield, Target, AlertTriangle, FileImage, Key, Radar, CheckSquare, Activity, AlertOctagon } from "lucide-react";
 
 const SEV_CHART_COLORS: Record<string, string> = {
   critical: "#dc2626",
@@ -52,6 +52,14 @@ export default function DashboardPage() {
     value: value as number,
     key: name,
   }));
+  const statusData = Object.entries(summary.findings_by_status || {}).map(([name, value]) => ({
+    name: name.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    value: value as number,
+  }));
+  const criticalCount = summary.findings_by_severity?.critical || 0;
+  const highCount = summary.findings_by_severity?.high || 0;
+  const mediumCount = summary.findings_by_severity?.medium || 0;
+  const riskScore = criticalCount * 5 + highCount * 3 + mediumCount * 2;
 
   const statCards = [
     { icon: Target, label: "Targets", value: summary.total_targets, path: "/targets" },
@@ -121,6 +129,59 @@ export default function DashboardPage() {
           ) : (
             <p className="text-gray-500 text-sm">No findings yet</p>
           )}
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Findings by Status</h3>
+          {statusData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={180}>
+              <PieChart>
+                <Pie data={statusData} dataKey="value" nameKey="name" outerRadius={58}>
+                  {statusData.map((entry, idx) => (
+                    <Cell key={`${entry.name}-${idx}`} fill={["#60a5fa", "#f97316", "#f59e0b", "#34d399", "#818cf8", "#f43f5e"][idx % 6]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ background: "#1f2937", border: "1px solid #374151", color: "#f9fafb" }} />
+                <Legend wrapperStyle={{ fontSize: "11px" }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-gray-500 text-sm">No status data yet</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Risk Snapshot</h3>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <div className="text-gray-400 flex items-center gap-1"><AlertOctagon size={14} className="text-red-400" /> Critical</div>
+              <span className="text-white font-semibold">{criticalCount}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="text-gray-400">High</div>
+              <span className="text-white font-semibold">{highCount}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <div className="text-gray-400">Medium</div>
+              <span className="text-white font-semibold">{mediumCount}</span>
+            </div>
+            <div className="pt-2 mt-2 border-t border-gray-800 flex items-center justify-between text-sm">
+              <span className="text-gray-400">Weighted score</span>
+              <span className="text-brand-300 font-semibold">{riskScore}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Quick Actions</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Review Findings</button>
+            <button onClick={() => navigate("/tasks")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Update Tasks</button>
+            <button onClick={() => navigate("/reports")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Generate Report</button>
+            <button onClick={() => navigate("/evidence")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Review Evidence</button>
+          </div>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">

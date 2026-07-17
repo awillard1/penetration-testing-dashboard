@@ -68,6 +68,7 @@ export const evidenceApi = {
   create: (data: unknown) => createOne("/evidence", data),
   update: (id: string, data: unknown) => updateOne(`/evidence/${id}`, data),
   remove: (id: string) => deleteOne(`/evidence/${id}`),
+  downloadUrl: (id: string) => `/api/v1/evidence/${id}/download`,
   upload: (engagementId: string, title: string, evidenceType: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

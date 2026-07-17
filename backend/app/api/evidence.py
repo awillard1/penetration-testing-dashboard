@@ -4,6 +4,7 @@ import hashlib, os, shutil
 from pathlib import Path
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.database import get_session
 from backend.app.models.evidence import Evidence
@@ -73,6 +74,24 @@ async def get_evidence(ev_id: str, session: AsyncSession = Depends(get_session))
     obj = await get_by_id(session, Evidence, ev_id)
     if not obj: raise HTTPException(404, "Evidence not found")
     return obj
+
+@router.get("/{ev_id}/download")
+async def download_evidence(ev_id: str, session: AsyncSession = Depends(get_session)):
+    obj = await get_by_id(session, Evidence, ev_id)
+    if not obj:
+        raise HTTPException(404, "Evidence not found")
+    if not obj.file_path:
+        raise HTTPException(404, "No file available for this evidence item")
+    file_path = Path(obj.file_path).resolve()
+    if settings.attachment_dir.resolve() not in file_path.parents:
+        raise HTTPException(403, "Invalid file path")
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(404, "Evidence file not found")
+    return FileResponse(
+        path=file_path,
+        media_type=obj.mime_type or "application/octet-stream",
+        filename=obj.original_filename or file_path.name,
+    )
 
 @router.patch("/{ev_id}", response_model=EvidenceRead)
 async def update_evidence(ev_id: str, body: EvidenceUpdate, session: AsyncSession = Depends(get_session)):

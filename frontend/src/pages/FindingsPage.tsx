@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { findingsApi, engagementsApi } from "../api/client";
+import { findingsApi, engagementsApi, evidenceApi } from "../api/client";
 import Button from "../components/ui/Button";
 import { SeverityBadge, StatusBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
-import { Input, Select, Textarea } from "../components/ui/Input";
+import { Input, Select } from "../components/ui/Input";
+import MarkdownEditor from "../components/ui/MarkdownEditor";
 import { Plus, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -23,6 +24,11 @@ export default function FindingsPage() {
 
   const { data: findings = [] } = useQuery({ queryKey: ["findings", filterEng, filterSev], queryFn: () => findingsApi.list({ ...(filterEng && { engagement_id: filterEng }), ...(filterSev && { severity: filterSev }) }) });
   const { data: engagements = [] } = useQuery({ queryKey: ["engagements"], queryFn: () => engagementsApi.list() });
+  const { data: engagementEvidence = [] } = useQuery({
+    queryKey: ["evidence", "finding-create", form.engagement_id],
+    queryFn: () => evidenceApi.list({ engagement_id: form.engagement_id }),
+    enabled: !!form.engagement_id,
+  });
 
   const createMut = useMutation({
     mutationFn: (data: typeof form) => findingsApi.create(data),
@@ -31,6 +37,13 @@ export default function FindingsPage() {
 
   const engOpts = [{ value: "", label: "All Engagements" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
   const sevOpts = [{ value: "", label: "All Severities" }, ...SEVERITIES];
+  const evidenceInsertOptions = (engagementEvidence as Array<{ id: string; title: string; mime_type?: string }>).map((ev) => {
+    const downloadUrl = evidenceApi.downloadUrl(ev.id);
+    const markdown = (ev.mime_type || "").startsWith("image/")
+      ? `![${ev.title}](${downloadUrl})`
+      : `[${ev.title}](${downloadUrl})`;
+    return { label: ev.title, value: markdown };
+  });
 
   return (
     <div className="space-y-4">
@@ -65,8 +78,8 @@ export default function FindingsPage() {
               <Select label="Severity" value={form.severity} onChange={e => setForm(f => ({ ...f, severity: e.target.value }))} options={SEVERITIES} />
               <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={STATUSES} />
             </div>
-            <Textarea label="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={4} />
-            <Textarea label="Remediation" value={form.remediation} onChange={e => setForm(f => ({ ...f, remediation: e.target.value }))} rows={3} />
+            <MarkdownEditor label="Description" value={form.description} onChange={(value) => setForm(f => ({ ...f, description: value }))} rows={5} insertOptions={evidenceInsertOptions} />
+            <MarkdownEditor label="Remediation" value={form.remediation} onChange={(value) => setForm(f => ({ ...f, remediation: value }))} rows={4} insertOptions={evidenceInsertOptions} />
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setShowModal(false)}>Cancel</Button>
               <Button variant="primary" size="sm" onClick={() => createMut.mutate(form)} disabled={!form.title || !form.engagement_id}>Create</Button>
