@@ -30,8 +30,8 @@ Write-Ok "Virtual environment active"
 
 # ── Python dependencies ───────────────────────────────────────────────────────
 Write-Info "Installing/updating Python dependencies..."
-pip install --quiet --upgrade pip
-pip install --quiet -r requirements.txt
+python -m pip install --quiet --upgrade pip
+python -m pip install --quiet -r requirements.txt
 Write-Ok "Python dependencies installed"
 
 # ── Runtime diagnostics ───────────────────────────────────────────────────────
