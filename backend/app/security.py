@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import hmac
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -92,4 +93,4 @@ def decode_access_token(token: str) -> dict[str, Any]:
 
 
 def hash_token(token: str) -> str:
-    return hashlib.sha256(f"{_get_signing_key()}:{token}".encode()).hexdigest()
+    return hmac.new(_get_signing_key().encode(), token.encode(), hashlib.sha256).hexdigest()

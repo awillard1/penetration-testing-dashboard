@@ -103,7 +103,7 @@ if _frontend_dist.exists():
 
     @app.get("/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def spa_fallback(full_path: str) -> HTMLResponse:
-        if full_path.startswith("api") or full_path in {"docs", "redoc", "openapi.json"}:
+        if full_path in {"api", "docs", "redoc", "openapi.json"} or full_path.startswith("api/"):
             from fastapi import HTTPException
 
             raise HTTPException(status_code=404, detail="Not found")
