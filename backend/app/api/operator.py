@@ -2,18 +2,19 @@
 from __future__ import annotations
 
 import asyncio
-import shlex
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import settings
-from backend.app.database import async_session_factory, get_session
+from backend.app.database import get_session
 from backend.app.models.base import utcnow
 from backend.app.models.command import Command
 from backend.app.models.credential import Credential
@@ -34,22 +35,20 @@ from backend.app.models.operator import (
     MethodologyItem,
     MethodologyProfile,
     MethodologyResult,
+    ReconSnapshot,
+    ReconSnapshotItem,
     ScreenshotAnnotation,
 )
 from backend.app.models.scan import ScanImport
 from backend.app.models.target import Target
 from backend.app.models.task import Task
 from backend.app.services.operator_assets import (
-    calculate_runtime,
     create_web_artifacts,
     evaluate_scope,
     parse_url_for_endpoint,
 )
 
 router = APIRouter()
-
-RUNNING_PROCESSES: dict[str, asyncio.subprocess.Process] = {}
-RUNNING_TASKS: dict[str, asyncio.Task[None]] = {}
 
 
 METHODOLOGY_SEED: dict[str, list[tuple[str, str]]] = {
@@ -141,57 +140,18 @@ class CredentialUsageRequest(BaseModel):
     last_validation_date: datetime | None = None
 
 
-async def _append_output(run_id: str, field: Literal["stdout", "stderr"], chunk: str) -> None:
-    async with async_session_factory() as session:
-        run = await session.get(CommandRun, run_id)
-        if not run:
-            return
-        current = getattr(run, field) or ""
-        setattr(run, field, f"{current}{chunk}")
-        await session.commit()
+class EndpointUpdateRequest(BaseModel):
+    testing_status: Literal["not_tested", "testing", "passed", "finding", "na", "blocked"] | None = None
+    auth_requirement: str | None = None
+    notes: str | None = None
+    interesting: bool | None = None
 
 
-async def _set_run_state(run_id: str, **changes: Any) -> None:
-    async with async_session_factory() as session:
-        run = await session.get(CommandRun, run_id)
-        if not run:
-            return
-        for key, value in changes.items():
-            setattr(run, key, value)
-        await session.commit()
-
-
-async def _read_stream(run_id: str, stream: asyncio.StreamReader, field: Literal["stdout", "stderr"]) -> None:
-    while True:
-        line = await stream.readline()
-        if not line:
-            return
-        await _append_output(run_id, field, line.decode("utf-8", errors="replace"))
-
-
-async def _monitor_run(run_id: str, process: asyncio.subprocess.Process) -> None:
-    started_at = utcnow()
-    await _set_run_state(run_id, status="running", pid=process.pid, started_at=started_at)
-
-    stdout_task = asyncio.create_task(_read_stream(run_id, process.stdout, "stdout"))
-    stderr_task = asyncio.create_task(_read_stream(run_id, process.stderr, "stderr"))
-
-    exit_code = await process.wait()
-    await stdout_task
-    await stderr_task
-
-    ended_at = utcnow()
-    status = "completed" if exit_code == 0 else "failed"
-    runtime_seconds = calculate_runtime(started_at, ended_at)
-    await _set_run_state(
-        run_id,
-        exit_code=exit_code,
-        ended_at=ended_at,
-        runtime_seconds=runtime_seconds,
-        status=status,
-    )
-    RUNNING_PROCESSES.pop(run_id, None)
-    RUNNING_TASKS.pop(run_id, None)
+class ReconSnapshotCreateRequest(BaseModel):
+    engagement_id: str
+    target_id: str | None = None
+    label: str | None = None
+    source_run_id: str | None = None
 
 
 async def _ensure_methodology_seed(session: AsyncSession) -> None:
@@ -227,11 +187,24 @@ def _resolve_working_directory(raw_path: str | None) -> Path:
     raise HTTPException(400, "working_directory must be one of: repo, data")
 
 
-def _build_command_args(command_text: str) -> list[str]:
-    args = shlex.split(command_text, posix=True)
-    if not args:
-        raise HTTPException(400, "command_text cannot be empty")
-    return args
+async def _collect_recon_entities(session: AsyncSession, engagement_id: str, target_id: str | None):
+    host_q = select(AssetHost).where(AssetHost.engagement_id == engagement_id)
+    endpoint_q = select(AssetEndpoint).where(AssetEndpoint.engagement_id == engagement_id)
+    service_q = select(AssetService).where(AssetService.engagement_id == engagement_id)
+    url_q = select(AssetUrl).where(AssetUrl.engagement_id == engagement_id)
+    param_q = select(EndpointParameter).join(AssetEndpoint, EndpointParameter.endpoint_id == AssetEndpoint.id).where(
+        AssetEndpoint.engagement_id == engagement_id
+    )
+    if target_id:
+        host_q = host_q.where((AssetHost.target_id == target_id) | (AssetHost.target_id.is_(None)))
+        endpoint_q = endpoint_q.where((AssetEndpoint.target_id == target_id) | (AssetEndpoint.target_id.is_(None)))
+
+    hosts = (await session.execute(host_q)).scalars().all()
+    services = (await session.execute(service_q)).scalars().all()
+    urls = (await session.execute(url_q)).scalars().all()
+    endpoints = (await session.execute(endpoint_q)).scalars().all()
+    params = (await session.execute(param_q)).scalars().all()
+    return hosts, services, urls, endpoints, params
 
 
 @router.post("/methodology/seed")
@@ -555,6 +528,170 @@ async def get_workspace(
     }
 
 
+@router.get("/endpoints/{endpoint_id}/detail")
+async def endpoint_detail(endpoint_id: str, session: AsyncSession = Depends(get_session)):
+    endpoint = await session.get(AssetEndpoint, endpoint_id)
+    if not endpoint:
+        raise HTTPException(404, "Endpoint not found")
+
+    params = (
+        await session.execute(select(EndpointParameter).where(EndpointParameter.endpoint_id == endpoint_id))
+    ).scalars().all()
+    http_messages = (
+        await session.execute(
+            select(HttpMessage)
+            .where(HttpMessage.endpoint_id == endpoint_id)
+            .order_by(HttpMessage.created_at.desc())
+            .limit(50)
+        )
+    ).scalars().all()
+    jobs = (
+        await session.execute(
+            select(CommandRun)
+            .where(CommandRun.engagement_id == endpoint.engagement_id)
+            .where((CommandRun.target_id == endpoint.target_id) | (CommandRun.target_id.is_(None)))
+            .order_by(CommandRun.created_at.desc())
+            .limit(25)
+        )
+    ).scalars().all()
+    findings = (
+        await session.execute(
+            select(Finding)
+            .where(Finding.engagement_id == endpoint.engagement_id)
+            .where(Finding.affected_endpoints.ilike(f"%{endpoint.path}%"))
+            .order_by(Finding.created_at.desc())
+            .limit(25)
+        )
+    ).scalars().all()
+    evidence = (
+        await session.execute(
+            select(Evidence)
+            .where(Evidence.engagement_id == endpoint.engagement_id)
+            .where((Evidence.target_id == endpoint.target_id) | (Evidence.notes.ilike(f"%{endpoint_id}%")))
+            .order_by(Evidence.created_at.desc())
+            .limit(50)
+        )
+    ).scalars().all()
+    notes = (
+        await session.execute(
+            select(Note)
+            .where(Note.engagement_id == endpoint.engagement_id)
+            .where((Note.target_id == endpoint.target_id) | (Note.content.ilike(f"%{endpoint.path}%")))
+            .order_by(Note.updated_at.desc())
+            .limit(25)
+        )
+    ).scalars().all()
+    credential_usages = (
+        await session.execute(select(CredentialUsage).where(CredentialUsage.endpoint_id == endpoint_id))
+    ).scalars().all()
+    scans = (
+        await session.execute(
+            select(ScanImport).where(ScanImport.engagement_id == endpoint.engagement_id).order_by(ScanImport.created_at.desc()).limit(10)
+        )
+    ).scalars().all()
+    provenance = {}
+    if endpoint.provenance_json:
+        try:
+            provenance = json.loads(endpoint.provenance_json)
+        except Exception:
+            provenance = {"raw": endpoint.provenance_json}
+
+    return {
+        "endpoint": {
+            "id": endpoint.id,
+            "engagement_id": endpoint.engagement_id,
+            "target_id": endpoint.target_id,
+            "host_id": endpoint.host_id,
+            "service_id": endpoint.service_id,
+            "url_id": endpoint.url_id,
+            "method": endpoint.method,
+            "path": endpoint.path,
+            "query_params": endpoint.query_params,
+            "body_params": endpoint.body_params,
+            "content_type": endpoint.content_type,
+            "status_code": endpoint.status_code,
+            "auth_requirement": endpoint.auth_requirement,
+            "testing_status": endpoint.testing_status,
+            "last_tested_at": endpoint.last_tested_at,
+            "first_seen": endpoint.first_seen,
+            "last_seen": endpoint.last_seen,
+            "source_tool": endpoint.source_tool,
+            "discovered_by": endpoint.discovered_by,
+            "provenance": provenance,
+        },
+        "parameters": [
+            {"id": p.id, "location": p.location, "name": p.name, "sample_value": p.sample_value}
+            for p in params
+        ],
+        "http_messages": [
+            {
+                "id": m.id,
+                "method": m.method,
+                "path": m.path,
+                "status_code": m.status_code,
+                "content_type": m.content_type,
+                "request_raw": m.request_raw,
+                "response_raw": m.response_raw,
+                "created_at": m.created_at,
+            }
+            for m in http_messages
+        ],
+        "findings": [
+            {"id": f.id, "title": f.title, "severity": f.severity, "status": f.status}
+            for f in findings
+        ],
+        "credentials": [
+            {
+                "id": u.id,
+                "credential_id": u.credential_id,
+                "validation_state": u.validation_state,
+                "last_validation_date": u.last_validation_date,
+            }
+            for u in credential_usages
+        ],
+        "evidence": [
+            {"id": e.id, "title": e.title, "evidence_type": e.evidence_type, "created_at": e.created_at}
+            for e in evidence
+        ],
+        "notes": [{"id": n.id, "title": n.title, "updated_at": n.updated_at} for n in notes],
+        "jobs": [
+            {"id": j.id, "status": j.status, "command_preview": j.command_preview, "created_at": j.created_at}
+            for j in jobs
+        ],
+        "scans": [
+            {"id": s.id, "filename": s.filename, "scan_type": s.scan_type, "created_at": s.created_at}
+            for s in scans
+        ],
+    }
+
+
+@router.patch("/endpoints/{endpoint_id}")
+async def update_endpoint(endpoint_id: str, body: EndpointUpdateRequest, session: AsyncSession = Depends(get_session)):
+    endpoint = await session.get(AssetEndpoint, endpoint_id)
+    if not endpoint:
+        raise HTTPException(404, "Endpoint not found")
+
+    if body.testing_status is not None:
+        endpoint.testing_status = body.testing_status
+        endpoint.last_tested_at = utcnow()
+    if body.auth_requirement is not None:
+        endpoint.auth_requirement = body.auth_requirement
+
+    provenance = {}
+    if endpoint.provenance_json:
+        try:
+            provenance = json.loads(endpoint.provenance_json)
+        except Exception:
+            provenance = {"raw": endpoint.provenance_json}
+    if body.notes is not None:
+        provenance["notes"] = body.notes
+    if body.interesting is not None:
+        provenance["interesting"] = body.interesting
+    endpoint.provenance_json = json.dumps(provenance, ensure_ascii=False)
+    await session.flush()
+    return {"id": endpoint.id, "testing_status": endpoint.testing_status, "auth_requirement": endpoint.auth_requirement}
+
+
 @router.get("/http-messages")
 async def list_http_messages(
     engagement_id: str,
@@ -671,19 +808,6 @@ async def execute_command_run(body: CommandExecuteRequest, session: AsyncSession
     session.add(run)
     await session.flush()
 
-    command_args = _build_command_args(body.command_text)
-    if body.execution_profile == "wsl":
-        command_args = ["wsl", *command_args]
-
-    process = await asyncio.create_subprocess_exec(
-        *command_args,
-        cwd=str(resolved_working_dir),
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
-    RUNNING_PROCESSES[run.id] = process
-    RUNNING_TASKS[run.id] = asyncio.create_task(_monitor_run(run.id, process))
-
     return {
         "id": run.id,
         "status": "queued",
@@ -716,12 +840,17 @@ async def list_command_runs(
             "command_preview": row.command_preview,
             "command_executed": row.command_executed,
             "execution_profile": row.execution_profile,
+            "runner_id": row.runner_id,
+            "runner_name": row.runner_name,
             "exit_code": row.exit_code,
             "runtime_seconds": row.runtime_seconds,
             "working_directory": row.working_directory,
             "output_location": row.output_location,
             "stdout": row.stdout,
             "stderr": row.stderr,
+            "stdout_tail": row.stdout_tail,
+            "stderr_tail": row.stderr_tail,
+            "stop_requested": row.stop_requested,
             "scope_warning": row.scope_warning,
             "scope_override": row.scope_override,
             "created_at": row.created_at,
@@ -732,23 +861,57 @@ async def list_command_runs(
     ]
 
 
+@router.get("/command-runs/stream")
+async def stream_command_runs(
+    engagement_id: str,
+    target_id: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    async def event_stream():
+        last_seen = None
+        while True:
+            q = select(CommandRun).where(CommandRun.engagement_id == engagement_id)
+            if target_id:
+                q = q.where(CommandRun.target_id == target_id)
+            if last_seen is not None:
+                q = q.where(CommandRun.updated_at > last_seen)
+            rows = (await session.execute(q.order_by(CommandRun.updated_at.asc()).limit(200))).scalars().all()
+            for row in rows:
+                last_seen = row.updated_at
+                payload = {
+                    "id": row.id,
+                    "status": row.status,
+                    "pid": row.pid,
+                    "target_id": row.target_id,
+                    "command_preview": row.command_preview,
+                    "command_executed": row.command_executed,
+                    "stdout_tail": row.stdout_tail,
+                    "stderr_tail": row.stderr_tail,
+                    "runtime_seconds": row.runtime_seconds,
+                    "runner_id": row.runner_id,
+                    "runner_name": row.runner_name,
+                    "stop_requested": row.stop_requested,
+                    "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                }
+                yield f"event: run_update\\ndata: {json.dumps(payload, ensure_ascii=False)}\\n\\n"
+            await asyncio.sleep(1.0)
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
 @router.post("/command-runs/{run_id}/stop")
 async def stop_command_run(run_id: str, session: AsyncSession = Depends(get_session)):
     row = await session.get(CommandRun, run_id)
     if not row:
         raise HTTPException(404, "Command run not found")
-
-    proc = RUNNING_PROCESSES.get(run_id)
-    if not proc:
-        return {"status": row.status, "message": "Process is not running"}
-
-    task = RUNNING_TASKS.pop(run_id, None)
-    if task and not task.done():
-        task.cancel()
-    proc.terminate()
-    await _set_run_state(run_id, status="stopped", ended_at=utcnow())
-    RUNNING_PROCESSES.pop(run_id, None)
-    return {"status": "stopped"}
+    if row.status in {"completed", "failed", "stopped"}:
+        return {"status": row.status, "message": "Job already finished"}
+    row.stop_requested = True
+    if row.status == "queued":
+        row.status = "stopped"
+        row.ended_at = utcnow()
+    await session.flush()
+    return {"status": row.status, "stop_requested": True}
 
 
 @router.post("/integrations/burp/ingest")
@@ -861,6 +1024,126 @@ async def burp_ingest(body: BurpIngestRequest, session: AsyncSession = Depends(g
     }
 
 
+@router.get("/recon")
+async def recon_workspace(
+    engagement_id: str,
+    target_id: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    hosts, services, urls, endpoints, params = await _collect_recon_entities(session, engagement_id, target_id)
+    return {
+        "hosts": [
+            {"id": h.id, "hostname": h.hostname, "ip_address": h.ip_address, "source_tool": h.source_tool, "first_seen": h.first_seen, "last_seen": h.last_seen}
+            for h in hosts
+        ],
+        "services": [
+            {"id": s.id, "host_id": s.host_id, "port": s.port, "protocol": s.protocol, "service_name": s.service_name, "technology": s.technology, "source_tool": s.source_tool}
+            for s in services
+        ],
+        "urls": [{"id": u.id, "host_id": u.host_id, "url": u.url, "source_tool": u.source_tool} for u in urls],
+        "endpoints": [
+            {"id": e.id, "target_id": e.target_id, "method": e.method, "path": e.path, "testing_status": e.testing_status, "status_code": e.status_code, "source_tool": e.source_tool, "first_seen": e.first_seen, "last_seen": e.last_seen}
+            for e in endpoints
+        ],
+        "parameters": [
+            {"id": p.id, "endpoint_id": p.endpoint_id, "location": p.location, "name": p.name, "sample_value": p.sample_value}
+            for p in params
+        ],
+    }
+
+
+@router.post("/recon/snapshots", status_code=201)
+async def create_recon_snapshot(body: ReconSnapshotCreateRequest, session: AsyncSession = Depends(get_session)):
+    hosts, services, urls, endpoints, params = await _collect_recon_entities(session, body.engagement_id, body.target_id)
+    snapshot = ReconSnapshot(
+        engagement_id=body.engagement_id,
+        target_id=body.target_id,
+        label=body.label,
+        source_run_id=body.source_run_id,
+    )
+    session.add(snapshot)
+    await session.flush()
+
+    def add_item(entity_type: str, key: str, value: str, source_tool: str | None = None):
+        session.add(
+            ReconSnapshotItem(
+                snapshot_id=snapshot.id,
+                entity_type=entity_type,
+                normalized_key=key[:512],
+                display_value=value,
+                source_tool=source_tool,
+                source_job_id=body.source_run_id,
+                confidence=0.8,
+            )
+        )
+
+    for h in hosts:
+        key = f"host:{(h.hostname or '').lower()}:{h.ip_address or ''}"
+        add_item("host", key, h.hostname or h.ip_address or h.id, h.source_tool)
+    for s in services:
+        key = f"service:{s.host_id}:{s.port}:{(s.protocol or '').lower()}:{(s.service_name or '').lower()}"
+        add_item("service", key, f"{s.port}/{s.protocol} {s.service_name or ''}".strip(), s.source_tool)
+    for u in urls:
+        key = f"url:{u.url.lower()}"
+        add_item("url", key, u.url, u.source_tool)
+    for e in endpoints:
+        key = f"endpoint:{(e.method or '').upper()}:{e.path.lower()}"
+        add_item("endpoint", key, f"{e.method} {e.path}", e.source_tool)
+    for p in params:
+        key = f"param:{p.endpoint_id}:{p.location.lower()}:{p.name.lower()}"
+        add_item("parameter", key, f"{p.location}:{p.name}", p.source_tool)
+
+    await session.flush()
+    return {"id": snapshot.id, "label": snapshot.label, "created_at": snapshot.created_at}
+
+
+@router.get("/recon/snapshots")
+async def list_recon_snapshots(
+    engagement_id: str,
+    target_id: str | None = None,
+    session: AsyncSession = Depends(get_session),
+):
+    q = select(ReconSnapshot).where(ReconSnapshot.engagement_id == engagement_id)
+    if target_id:
+        q = q.where((ReconSnapshot.target_id == target_id) | (ReconSnapshot.target_id.is_(None)))
+    rows = (await session.execute(q.order_by(ReconSnapshot.created_at.desc()).limit(100))).scalars().all()
+    return [
+        {
+            "id": r.id,
+            "label": r.label,
+            "target_id": r.target_id,
+            "source_run_id": r.source_run_id,
+            "created_at": r.created_at,
+        }
+        for r in rows
+    ]
+
+
+@router.get("/recon/diff")
+async def recon_diff(base_snapshot_id: str, compare_snapshot_id: str, session: AsyncSession = Depends(get_session)):
+    base_items = (
+        await session.execute(select(ReconSnapshotItem).where(ReconSnapshotItem.snapshot_id == base_snapshot_id))
+    ).scalars().all()
+    compare_items = (
+        await session.execute(select(ReconSnapshotItem).where(ReconSnapshotItem.snapshot_id == compare_snapshot_id))
+    ).scalars().all()
+    base_map = {f"{i.entity_type}:{i.normalized_key}": i for i in base_items}
+    compare_map = {f"{i.entity_type}:{i.normalized_key}": i for i in compare_items}
+
+    added_keys = sorted(set(compare_map) - set(base_map))
+    removed_keys = sorted(set(base_map) - set(compare_map))
+    changed_keys = sorted(k for k in (set(base_map) & set(compare_map)) if base_map[k].display_value != compare_map[k].display_value)
+
+    def ser(item: ReconSnapshotItem):
+        return {"id": item.id, "entity_type": item.entity_type, "key": item.normalized_key, "value": item.display_value, "source_tool": item.source_tool}
+
+    return {
+        "added": [ser(compare_map[k]) for k in added_keys],
+        "removed": [ser(base_map[k]) for k in removed_keys],
+        "changed": [{"before": ser(base_map[k]), "after": ser(compare_map[k])} for k in changed_keys],
+    }
+
+
 @router.get("/jobs")
 async def jobs_dashboard(
     engagement_id: str,
@@ -889,7 +1172,10 @@ async def jobs_dashboard(
                 "engagement_id": r.engagement_id,
                 "command": r.command_executed or r.command_preview,
                 "execution_profile": r.execution_profile,
+                "runner_id": r.runner_id,
+                "runner_name": r.runner_name,
                 "output_location": r.output_location,
+                "stop_requested": r.stop_requested,
                 "started_at": r.started_at,
                 "ended_at": r.ended_at,
             }

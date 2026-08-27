@@ -7,7 +7,7 @@ const { mocks } = vi.hoisted(() => ({
   mocks: {
     settingsApi: { list: vi.fn() },
     engagementsApi: { list: vi.fn() },
-    operatorApi: { listCommandRuns: vi.fn(), stopCommand: vi.fn() },
+    operatorApi: { listCommandRuns: vi.fn(), stopCommand: vi.fn(), commandRunsStreamUrl: vi.fn() },
   },
 }));
 
@@ -22,8 +22,17 @@ vi.mock("react-hot-toast", () => ({ default: { success: vi.fn(), error: vi.fn() 
 describe("JobsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    class MockEventSource {
+      onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
+      addEventListener = vi.fn();
+      close = vi.fn();
+      constructor(_url: string) {}
+    }
+    // @ts-expect-error test shim
+    global.EventSource = MockEventSource;
     mocks.settingsApi.list.mockResolvedValue([{ key: "active_engagement_id", value: "eng-1" }]);
     mocks.engagementsApi.list.mockResolvedValue([{ id: "eng-1", name: "Eng 1" }]);
+    mocks.operatorApi.commandRunsStreamUrl.mockReturnValue("/api/v1/operator/command-runs/stream?engagement_id=eng-1");
     mocks.operatorApi.listCommandRuns.mockResolvedValue([
       {
         id: "run-1",

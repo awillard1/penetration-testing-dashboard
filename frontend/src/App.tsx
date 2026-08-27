@@ -21,6 +21,11 @@ import ScansPage from "./pages/ScansPage";
 import SettingsPage from "./pages/SettingsPage";
 import TargetWorkspacePage from "./pages/TargetWorkspacePage";
 import JobsPage from "./pages/JobsPage";
+import ReconPage from "./pages/ReconPage";
+import MyWorkPage from "./pages/MyWorkPage";
+import TestingPage from "./pages/TestingPage";
+import RunnersPage from "./pages/RunnersPage";
+import ReviewRetestPage from "./pages/ReviewRetestPage";
 
 export default function App() {
   // Keyboard shortcut: Ctrl+K for global search
@@ -51,15 +56,20 @@ export default function App() {
         <Route path="/evidence" element={<EvidencePage />} />
         <Route path="/credentials" element={<CredentialsPage />} />
         <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/my-work" element={<MyWorkPage />} />
+        <Route path="/testing" element={<TestingPage />} />
         <Route path="/notes" element={<NotesPage />} />
         <Route path="/commands" element={<CommandsPage />} />
         <Route path="/payloads" element={<PayloadsPage />} />
         <Route path="/links" element={<LinksPage />} />
         <Route path="/scans" element={<ScansPage />} />
+        <Route path="/recon" element={<ReconPage />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/runners" element={<RunnersPage />} />
+        <Route path="/review" element={<ReviewRetestPage />} />
       </Routes>
     </Layout>
   );

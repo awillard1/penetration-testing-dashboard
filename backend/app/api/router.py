@@ -18,6 +18,7 @@ from backend.app.api import (
     operator,
     payloads,
     reports,
+    runners,
     scans,
     scope,
     search,
@@ -46,6 +47,7 @@ api_router.include_router(commands.router, prefix="/commands", tags=["commands"]
 api_router.include_router(payloads.router, prefix="/payloads", tags=["payloads"])
 api_router.include_router(scans.router, prefix="/scans", tags=["scans"])
 api_router.include_router(reports.router, prefix="/reports", tags=["reports"])
+api_router.include_router(runners.router, prefix="/runners", tags=["runners"])
 api_router.include_router(activity.router, prefix="/activity", tags=["activity"])
 api_router.include_router(time_entries.router, prefix="/time-entries", tags=["time-entries"])
 api_router.include_router(backups.router, prefix="/backups", tags=["backups"])

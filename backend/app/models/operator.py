@@ -187,9 +187,19 @@ class CommandRun(Base, UUIDMixin, TimestampMixin):
     command_preview: Mapped[str] = mapped_column(Text, nullable=False)
     command_executed: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False, index=True)
+    runner_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("runner_nodes.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    runner_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     pid: Mapped[int | None] = mapped_column(Integer, nullable=True)
     stdout: Mapped[str | None] = mapped_column(Text, nullable=True)
     stderr: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stdout_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    stderr_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    stdout_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stderr_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stdout_tail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stderr_tail: Mapped[str | None] = mapped_column(Text, nullable=True)
     exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
     runtime_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     working_directory: Mapped[str | None] = mapped_column(String(1024), nullable=True)
@@ -198,6 +208,7 @@ class CommandRun(Base, UUIDMixin, TimestampMixin):
     scope_warning: Mapped[str | None] = mapped_column(Text, nullable=True)
     scope_override: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     scope_override_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stop_requested: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -362,3 +373,35 @@ class EngagementChecklistItem(Base, UUIDMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(32), default="pending", nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class ReconSnapshot(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "recon_snapshots"
+
+    engagement_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("engagements.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    target_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("targets.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    source_run_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("command_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+
+
+class ReconSnapshotItem(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "recon_snapshot_items"
+    __table_args__ = (UniqueConstraint("snapshot_id", "entity_type", "normalized_key", name="uq_snapshot_entity"),)
+
+    snapshot_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("recon_snapshots.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    entity_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    normalized_key: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
+    display_value: Mapped[str] = mapped_column(Text, nullable=False)
+    source_tool: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    source_job_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("command_runs.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)

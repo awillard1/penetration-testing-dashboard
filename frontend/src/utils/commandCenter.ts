@@ -5,6 +5,8 @@ export type EndpointRecord = {
   testing_status?: string;
   auth_requirement?: string;
   status_code?: number;
+  content_type?: string;
+  query_params?: string;
 };
 
 export type SiteMapNode = {

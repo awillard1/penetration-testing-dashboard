@@ -1,13 +1,15 @@
 """Database initialization and session management."""
 from __future__ import annotations
 
+from pathlib import Path
 from typing import AsyncIterator
 
+from alembic import command
+from alembic.config import Config
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from backend.app.config import settings
-from backend.app.models.base import Base
 
 # Ensure aiosqlite is available for SQLite async
 _db_url = settings.database_url
@@ -35,12 +37,14 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def init_db() -> None:
-    """Create tables for all models."""
-    import backend.app.models  # noqa: F401 – register all models
-
+    """Initialize database pragmas and apply Alembic migrations."""
     async with engine.begin() as conn:
         # Enable WAL mode and foreign keys for SQLite
         if "sqlite" in _db_url:
             await conn.execute(__import__("sqlalchemy").text("PRAGMA journal_mode=WAL"))
             await conn.execute(__import__("sqlalchemy").text("PRAGMA foreign_keys=ON"))
-        await conn.run_sync(Base.metadata.create_all)
+
+    alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(alembic_cfg, "head")

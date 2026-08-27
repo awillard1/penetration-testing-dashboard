@@ -61,3 +61,4 @@ Thumbs.db
 *.pem
 *.key
 *.p12
+.gradle/

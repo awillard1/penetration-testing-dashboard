@@ -3,10 +3,12 @@ import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import {
   Activity,
   AlertTriangle,
+  Briefcase,
   CheckSquare,
   ChevronLeft,
   Code2,
   FileImage,
+  FlaskConical,
   FileOutput,
   FileText,
   LayoutDashboard,
@@ -31,8 +33,16 @@ const navSections = [
     title: "Command Center",
     items: [
       { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-      { to: "/engagements", icon: Shield, label: "Engagements" },
+      { to: "/my-work", icon: Briefcase, label: "My Work" },
+    ],
+  },
+  {
+    title: "Engagement",
+    items: [
+      { to: "/engagements", icon: Shield, label: "Overview" },
       { to: "/targets", icon: Target, label: "Targets" },
+      { to: "/recon", icon: Radar, label: "Recon" },
+      { to: "/testing", icon: FlaskConical, label: "Testing" },
       { to: "/findings", icon: AlertTriangle, label: "Findings" },
       { to: "/credentials", icon: Key, label: "Credentials" },
       { to: "/evidence", icon: FileImage, label: "Evidence" },
@@ -43,9 +53,9 @@ const navSections = [
     title: "Operations",
     items: [
       { to: "/jobs", icon: PlayCircle, label: "Jobs" },
-      { to: "/commands", icon: Terminal, label: "Terminal" },
-      { to: "/scans", icon: Radar, label: "Recon / Scans" },
-      { to: "/tasks", icon: CheckSquare, label: "Testing Queue" },
+      { to: "/commands", icon: Terminal, label: "Tool Launcher" },
+      { to: "/scans", icon: Radar, label: "Workflows" },
+      { to: "/runners", icon: Settings, label: "Runners" },
       { to: "/notes", icon: FileText, label: "Notes" },
     ],
   },
@@ -57,9 +67,15 @@ const navSections = [
     ],
   },
   {
-    title: "Delivery & Admin",
+    title: "Delivery",
     items: [
       { to: "/reports", icon: FileOutput, label: "Reports" },
+      { to: "/review", icon: CheckSquare, label: "Review / Retest" },
+    ],
+  },
+  {
+    title: "Admin",
+    items: [
       { to: "/clients", icon: Users, label: "Clients" },
       { to: "/settings", icon: Settings, label: "Settings" },
     ],

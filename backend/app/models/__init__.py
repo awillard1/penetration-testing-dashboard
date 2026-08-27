@@ -27,10 +27,13 @@ from backend.app.models.operator import (
     MethodologyItem,
     MethodologyProfile,
     MethodologyResult,
+    ReconSnapshot,
+    ReconSnapshotItem,
     ScreenshotAnnotation,
 )
 from backend.app.models.payload import Payload
 from backend.app.models.report import Report
+from backend.app.models.runner import RunnerJobEvent, RunnerNode
 from backend.app.models.scan import ScanImport, ScanResult
 from backend.app.models.scope import ScopeItem
 from backend.app.models.setting import ApplicationSetting
@@ -67,6 +70,8 @@ __all__ = [
     "MethodologyProfile",
     "MethodologyItem",
     "MethodologyResult",
+    "ReconSnapshot",
+    "ReconSnapshotItem",
     "CommandRun",
     "HttpMessage",
     "ScreenshotAnnotation",
@@ -79,6 +84,8 @@ __all__ = [
     "EngagementChecklistItem",
     "Payload",
     "Report",
+    "RunnerNode",
+    "RunnerJobEvent",
     "ScanImport",
     "ScanResult",
     "ScopeItem",

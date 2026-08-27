@@ -22,11 +22,36 @@ A local-first penetration test engagement management platform. Built with FastAP
 - **Operator Command Runner** — explicit preview/edit/confirm execution with scope checks and job history
 - **Jobs Dashboard** — running/completed/failed/stopped process tracking with runtime and output
 - **Jobs Operations Console** — status filtering, run detail inspection (stdout/stderr), and explicit stop actions for running jobs
+- **External Runner Architecture (Phase Foundation)** — queued jobs are executed by a separate runner service (`runner/runner_service.py`) instead of FastAPI-owned subprocesses
 - **HTTP Evidence Inspector Foundation** — captured request/response records with sensitive-header masking
 - **Evidence Operations Workspace** — searchable evidence list with detail editing, inline preview, download/open, and finding association controls
 - **Scan Import Detail Workflow** — inspect import metadata/error logs/parsed results and update operator notes
 - **Burp Ingest Foundation** — API path to send request/response traffic into targets/endpoints/evidence/finding candidates
 - **Generic Normalization Importer** — adaptable JSON import path for ffuf/ferox/gobuster/openvas/hashcat-style records
+
+---
+
+## Tool Inventory Scripts
+
+Use the provided scripts to verify/install common operator tools:
+
+```bash
+./scripts/check-tools.sh
+./scripts/install-tools.sh --projectdiscovery
+./scripts/install-tools.sh --web
+./scripts/install-tools.sh --network
+./scripts/install-tools.sh --code
+./scripts/install-tools.sh --cracking
+./scripts/install-tools.sh --all
+```
+
+PowerShell:
+
+```powershell
+.\scripts\check-tools.ps1
+.\scripts\install-tools.ps1 -projectdiscovery
+.\scripts\install-tools.ps1 -all
+```
 
 ---
 
@@ -88,6 +113,9 @@ bash scripts/dev.sh
 - `OPERATOR_GAP_ANALYSIS.md` — audited functionality gaps and remediation status
 - `OPERATOR_WORKFLOWS.md` — operator-centric daily workflow map
 - `ARCHITECTURE.md` — current architecture and near-term evolution
+- `docs/IMPLEMENTATION_GAP_AUDIT.md` — completion classification (COMPLETE/PARTIAL/MISSING/BROKEN/BACKEND ONLY/FRONTEND ONLY)
+- `docs/RUNNER_INSTALLATION.md` — runner setup, registration, and troubleshooting
+- `docs/BURP_EXTENSION_INSTALLATION.md` — Burp extension build/load/configure instructions
 
 ---
 
