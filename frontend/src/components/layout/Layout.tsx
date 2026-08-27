@@ -20,6 +20,7 @@ import {
   Search,
   ChevronLeft,
   Radar,
+  PlayCircle,
 } from "lucide-react";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
@@ -39,6 +40,7 @@ const navItems = [
   { to: "/payloads", icon: Code2, label: "Payloads" },
   { to: "/links", icon: Link2, label: "Links" },
   { to: "/scans", icon: Radar, label: "Scans" },
+  { to: "/jobs", icon: PlayCircle, label: "Jobs" },
   { to: "/activity", icon: Activity, label: "Activity" },
   { to: "/reports", icon: FileOutput, label: "Reports" },
   { to: "/settings", icon: Settings, label: "Settings" },

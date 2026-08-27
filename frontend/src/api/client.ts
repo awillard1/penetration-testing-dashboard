@@ -201,6 +201,19 @@ export const settingsApi = {
   set: (key: string, value: string | null) => api.put(`/settings/${key}`, { value }).then((r) => r.data),
 };
 
+export const operatorApi = {
+  workspace: (engagementId: string, targetId: string) =>
+    getOne(`/operator/workspace?engagement_id=${encodeURIComponent(engagementId)}&target_id=${encodeURIComponent(targetId)}`),
+  methodologyProfiles: () => getList("/operator/methodology/profiles"),
+  upsertMethodologyResult: (data: unknown) => api.put("/operator/methodology/results", data).then((r) => r.data),
+  commandPreview: (data: unknown) => api.post("/operator/command-runs/preview", data).then((r) => r.data),
+  executeCommand: (data: unknown) => api.post("/operator/command-runs/execute", data).then((r) => r.data),
+  listCommandRuns: (params: Record<string, unknown>) => getList("/operator/command-runs", params),
+  stopCommand: (id: string) => api.post(`/operator/command-runs/${id}/stop`).then((r) => r.data),
+  jobs: (params: Record<string, unknown>) => getList("/operator/jobs", params),
+  httpMessages: (params: Record<string, unknown>) => getList("/operator/http-messages", params),
+};
+
 export const healthApi = {
   check: () => getOne("/health"),
 };

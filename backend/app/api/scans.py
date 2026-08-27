@@ -1,27 +1,29 @@
 """Scan imports API."""
 from __future__ import annotations
-from typing import Optional
-from pathlib import Path
+
 import hashlib
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.config import settings
 from backend.app.database import get_session
 from backend.app.models.scan import ScanImport
 from backend.app.schemas.schemas import ScanImportRead
 from backend.app.utils.crud import create_obj, delete_obj, get_by_id, list_all
-from backend.app.config import settings
-from backend.app.models.base import utcnow
 
 router = APIRouter()
 
 @router.get("", response_model=list[ScanImportRead])
 async def list_scans(
-    engagement_id: Optional[str] = Query(None),
+    engagement_id: str | None = Query(None),
     skip: int = Query(0, ge=0), limit: int = Query(50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
 ):
     filters = []
-    if engagement_id: filters.append(ScanImport.engagement_id == engagement_id)
+    if engagement_id:
+        filters.append(ScanImport.engagement_id == engagement_id)
     rows, _ = await list_all(session, ScanImport, filters, skip, limit, ScanImport.created_at.desc())
     return rows
 
@@ -48,7 +50,32 @@ async def upload_scan(
     elif safe_name.endswith(".nessus"):
         scan_type = "nessus"
     elif safe_name.endswith(".json") or safe_name.endswith(".jsonl"):
-        scan_type = "nuclei" if b'"template-id"' in content[:2048] else ("ffuf" if b'"commandline"' in content[:2048] else "json")
+        header = content[:4096]
+        scan_type = (
+            "nuclei"
+            if b'"template-id"' in header
+            else (
+                "ffuf"
+                if b'"commandline"' in header
+                else (
+                    "generic_json"
+                    if any(
+                        marker in header
+                        for marker in [
+                            b'"nmap"',
+                            b'"openvas"',
+                            b'"nessus"',
+                            b'"gobuster"',
+                            b'"ferox"',
+                            b'"hashcat"',
+                            b'"john"',
+                            b'"burp"',
+                        ]
+                    )
+                    else "json"
+                )
+            )
+        )
     elif safe_name.endswith(".csv"):
         scan_type = "csv"
 
@@ -64,7 +91,8 @@ async def upload_scan(
     # Run importer asynchronously
     try:
         from backend.app.integrations import run_importer
-        result = await run_importer(session, obj, content)
+
+        await run_importer(session, obj, content)
         await session.flush()
     except Exception as e:
         import logging
@@ -75,11 +103,13 @@ async def upload_scan(
 @router.get("/{scan_id}", response_model=ScanImportRead)
 async def get_scan(scan_id: str, session: AsyncSession = Depends(get_session)):
     obj = await get_by_id(session, ScanImport, scan_id)
-    if not obj: raise HTTPException(404, "Scan not found")
+    if not obj:
+        raise HTTPException(404, "Scan not found")
     return obj
 
 @router.delete("/{scan_id}", status_code=204)
 async def delete_scan(scan_id: str, session: AsyncSession = Depends(get_session)):
     obj = await get_by_id(session, ScanImport, scan_id)
-    if not obj: raise HTTPException(404, "Scan not found")
+    if not obj:
+        raise HTTPException(404, "Scan not found")
     await delete_obj(session, obj)

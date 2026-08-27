@@ -667,13 +667,28 @@ class SettingRead(BaseModel):
 class DashboardSummary(BaseModel):
     active_engagement: Optional[EngagementRead] = None
     total_targets: int = 0
+    total_hosts: int = 0
+    total_services: int = 0
+    total_endpoints: int = 0
+    tested_endpoints: int = 0
     total_findings: int = 0
     findings_by_severity: dict[str, int] = {}
     findings_by_status: dict[str, int] = {}
     open_tasks: int = 0
     evidence_count: int = 0
     credential_count: int = 0
+    valid_credential_count: int = 0
     scan_count: int = 0
+    coverage_percent: float = 0.0
+    pending_retests: int = 0
+    pending_evidence: int = 0
+    pending_review: int = 0
+    running_jobs: int = 0
+    completed_jobs: int = 0
+    failed_jobs: int = 0
+    stopped_jobs: int = 0
+    untested_endpoints: int = 0
+    day_counter: int = 0
     recent_activity: List[ActivityEventRead] = []
 
 

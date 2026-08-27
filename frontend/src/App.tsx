@@ -19,6 +19,8 @@ import ActivityPage from "./pages/ActivityPage";
 import ReportsPage from "./pages/ReportsPage";
 import ScansPage from "./pages/ScansPage";
 import SettingsPage from "./pages/SettingsPage";
+import TargetWorkspacePage from "./pages/TargetWorkspacePage";
+import JobsPage from "./pages/JobsPage";
 
 export default function App() {
   // Keyboard shortcut: Ctrl+K for global search
@@ -43,6 +45,7 @@ export default function App() {
         <Route path="/engagements/:id" element={<EngagementDetailPage />} />
         <Route path="/clients" element={<ClientsPage />} />
         <Route path="/targets" element={<TargetsPage />} />
+        <Route path="/workspace/:id" element={<TargetWorkspacePage />} />
         <Route path="/findings" element={<FindingsPage />} />
         <Route path="/findings/:id" element={<FindingDetailPage />} />
         <Route path="/evidence" element={<EvidencePage />} />
@@ -55,6 +58,7 @@ export default function App() {
         <Route path="/scans" element={<ScansPage />} />
         <Route path="/activity" element={<ActivityPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/jobs" element={<JobsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Routes>
     </Layout>

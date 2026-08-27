@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from backend.app.models.scan import ScanImport
 
 logger = logging.getLogger(__name__)
@@ -27,6 +29,9 @@ async def run_importer(session: AsyncSession, scan_import: ScanImport, content: 
         elif scan_type in ("burp_xml",):
             from backend.app.integrations.burp import import_burp
             await import_burp(session, scan_import, content)
+        elif scan_type == "generic_json":
+            from backend.app.integrations.generic_json import import_generic_json
+            await import_generic_json(session, scan_import, content)
         else:
             scan_import.status = "unsupported"
     except Exception as exc:

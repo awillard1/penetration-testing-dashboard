@@ -1,12 +1,16 @@
 """Nessus .nessus importer."""
 from __future__ import annotations
+
 import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.app.models.scan import ScanImport, ScanResult
-from backend.app.models.target import Target
-from backend.app.models.finding import Finding
-from backend.app.utils.crud import create_obj
+
 from backend.app.models.base import utcnow
+from backend.app.models.finding import Finding
+from backend.app.models.scan import ScanImport
+from backend.app.models.target import Target
+from backend.app.services.operator_assets import get_or_create_host, get_or_create_service
+from backend.app.utils.crud import create_obj
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +39,15 @@ async def import_nessus(session: AsyncSession, scan_import: ScanImport, content:
                 "last_seen": utcnow(),
             }
             target = await create_obj(session, Target, target_data)
+            host_row = await get_or_create_host(
+                session,
+                engagement_id=scan_import.engagement_id,
+                target_id=target.id,
+                hostname=hostname,
+                ip_address=ip,
+                source_tool="nessus",
+                discovered_by="nessus_import",
+            )
             target_count += 1
             for item in host.findall("ReportItem"):
                 sev_int = item.get("severity", "0")
@@ -53,7 +66,21 @@ async def import_nessus(session: AsyncSession, scan_import: ScanImport, content:
                     "status": "draft",
                     "source": "nessus",
                 }
-                finding = await create_obj(session, Finding, finding_data)
+                await create_obj(session, Finding, finding_data)
+                try:
+                    port_value = int(item.get("port", "0"))
+                except ValueError:
+                    port_value = None
+                await get_or_create_service(
+                    session,
+                    engagement_id=scan_import.engagement_id,
+                    host_id=host_row.id,
+                    port=port_value,
+                    protocol=item.get("protocol"),
+                    service_name=item.get("svc_name"),
+                    source_tool="nessus",
+                    discovered_by="nessus_import",
+                )
                 finding_count += 1
     scan_import.status = "complete"
     scan_import.imported_targets = target_count

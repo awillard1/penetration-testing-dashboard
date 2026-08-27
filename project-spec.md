@@ -1,5 +1,21 @@
 ChatGPT Plus
 
+## Implementation Update (Operator Expansion)
+
+The current codebase includes a practical operator-grade expansion foundation:
+
+- Target-centric workspace (`/workspace/:id`) with inventory, findings, credentials, notes/tasks, evidence, HTTP traffic, and command/job history.
+- Normalized service/endpoint hierarchy (`Host -> Service -> URL -> Endpoint -> Parameter`) with provenance metadata (`source_tool`, `discovered_by`, `first_seen`, `last_seen`).
+- Methodology coverage profiles (Web/API/Network/AD/Cloud/Mobile/Wireless) with per-target status tracking (`not_tested/testing/passed/finding/na`).
+- Explicit operator command execution flow (`preview -> edit -> explicit confirm -> execute`) with scope checks, override audit fields, runtime capture, and stop controls.
+- Live jobs/process dashboard API and UI (`/jobs`) with statuses (running/completed/failed/stopped), PID, command, runtime.
+- Burp ingest API foundation for request/response ingestion, endpoint creation, evidence attachment, candidate finding generation, and scope warning/override handling.
+- HTTP request/response evidence viewer API with sensitive header masking.
+- Screenshot annotation metadata persistence while preserving original artifacts.
+- Structured credential usage relationships with validation state tracking.
+- Foothold/session tracking and engagement readiness/closeout checklist models.
+- Dashboard summary upgraded with coverage/testing/job/queue KPIs.
+
 
 
 

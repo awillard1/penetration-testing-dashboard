@@ -15,6 +15,7 @@ from backend.app.api import (
     health,
     links,
     notes,
+    operator,
     payloads,
     reports,
     scans,
@@ -39,6 +40,7 @@ api_router.include_router(evidence.router, prefix="/evidence", tags=["evidence"]
 api_router.include_router(credentials.router, prefix="/credentials", tags=["credentials"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 api_router.include_router(notes.router, prefix="/notes", tags=["notes"])
+api_router.include_router(operator.router, prefix="/operator", tags=["operator"])
 api_router.include_router(links.router, prefix="/links", tags=["links"])
 api_router.include_router(commands.router, prefix="/commands", tags=["commands"])
 api_router.include_router(payloads.router, prefix="/payloads", tags=["payloads"])

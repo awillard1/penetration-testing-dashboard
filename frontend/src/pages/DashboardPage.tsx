@@ -63,9 +63,13 @@ export default function DashboardPage() {
 
   const statCards = [
     { icon: Target, label: "Targets", value: summary.total_targets, path: "/targets" },
+    { icon: Target, label: "Hosts Alive", value: summary.total_hosts || 0, path: "/targets" },
+    { icon: Radar, label: "Endpoints", value: summary.total_endpoints || 0, path: "/targets" },
+    { icon: CheckSquare, label: "Endpoints Tested", value: summary.tested_endpoints || 0, path: "/targets" },
     { icon: AlertTriangle, label: "Findings", value: summary.total_findings, path: "/findings" },
     { icon: FileImage, label: "Evidence", value: summary.evidence_count, path: "/evidence" },
     { icon: Key, label: "Credentials", value: summary.credential_count, path: "/credentials" },
+    { icon: Key, label: "Valid Credentials", value: summary.valid_credential_count || 0, path: "/credentials" },
     { icon: Radar, label: "Scans", value: summary.scan_count, path: "/scans" },
     { icon: CheckSquare, label: "Open Tasks", value: summary.open_tasks, path: "/tasks" },
   ];
@@ -78,6 +82,7 @@ export default function DashboardPage() {
           <div>
             <p className="text-xs text-gray-500 uppercase mb-1">Active Engagement</p>
             <h1 className="text-lg font-bold text-white">{summary.active_engagement?.name}</h1>
+            <p className="text-xs text-gray-500 mt-1">Day {summary.day_counter || 0} of active testing</p>
             <div className="flex gap-2 mt-2">
               <StatusBadge status={summary.active_engagement?.status || "draft"} />
               <span className="text-xs text-gray-500">{summary.active_engagement?.engagement_type}</span>
@@ -93,7 +98,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {statCards.map(({ icon: Icon, label, value, path }) => (
           <button
             key={label}
@@ -175,17 +180,21 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Quick Actions</h3>
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Work Remaining</h3>
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Review Findings</button>
-            <button onClick={() => navigate("/tasks")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Update Tasks</button>
-            <button onClick={() => navigate("/reports")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Generate Report</button>
-            <button onClick={() => navigate("/evidence")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Review Evidence</button>
+            <button onClick={() => navigate("/targets")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Untested endpoints: {summary.untested_endpoints || 0}</button>
+            <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Pending review: {summary.pending_review || 0}</button>
+            <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Retests pending: {summary.pending_retests || 0}</button>
+            <button onClick={() => navigate("/evidence")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Evidence gaps: {summary.pending_evidence || 0}</button>
           </div>
         </div>
 
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-4">
-          <h3 className="text-sm font-semibold text-gray-300 mb-3">Recent Activity</h3>
+          <h3 className="text-sm font-semibold text-gray-300 mb-3">Live Activity & Recent Discoveries</h3>
+          <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+            <div className="bg-gray-800 rounded px-2 py-1 text-gray-300">Jobs running: {summary.running_jobs || 0}</div>
+            <div className="bg-gray-800 rounded px-2 py-1 text-gray-300">Coverage: {summary.coverage_percent || 0}%</div>
+          </div>
           {summary.recent_activity?.length > 0 ? (
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {summary.recent_activity.map((ev: { id: string; event_type: string; description?: string; created_at: string }) => (
