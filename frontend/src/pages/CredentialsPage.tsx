@@ -6,8 +6,11 @@ import Modal from "../components/ui/Modal";
 import { Input, Select } from "../components/ui/Input";
 import { Plus, Eye, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { canRevealSecrets } from "../lib/capabilities";
+import { useAuth } from "../useAuth";
 
 export default function CredentialsPage() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [filterEng, setFilterEng] = useState("");
@@ -29,6 +32,7 @@ export default function CredentialsPage() {
     const { secret } = await credentialsApi.reveal(id);
     setRevealed(r => ({ ...r, [id]: secret || "(empty)" }));
   };
+  const mayRevealSecrets = canRevealSecrets(user);
 
   const secretTypes = ["password","api_key","token","ntlm_hash","ssh_key","cookie","certificate","connection_string","other"].map(v => ({ value: v, label: v.replace(/_/g, " ") }));
   const engOpts = [{ value: "", label: "All Engagements" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))];
@@ -56,6 +60,8 @@ export default function CredentialsPage() {
                 <td className="px-3 py-2">
                   {revealed[c.id] ? (
                     <span className="text-green-300 text-xs font-mono">{revealed[c.id]}</span>
+                  ) : !mayRevealSecrets ? (
+                    <span className="text-xs text-gray-500">Restricted</span>
                   ) : (
                     <button onClick={() => revealSecret(c.id)} className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-400"><Eye size={12}/> Reveal</button>
                   )}

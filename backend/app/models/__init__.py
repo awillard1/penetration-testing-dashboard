@@ -9,8 +9,28 @@ from backend.app.models.evidence import Evidence
 from backend.app.models.finding import Finding, FindingEvidence, FindingTarget, FindingTemplate
 from backend.app.models.link import Link, LinkCollection
 from backend.app.models.note import Note
+from backend.app.models.operator import (
+    AssetEndpoint,
+    AssetHost,
+    AssetService,
+    AssetUrl,
+    CommandRun,
+    CredentialUsage,
+    EndpointParameter,
+    EngagementChecklistItem,
+    FootholdSession,
+    HttpMessage,
+    MethodologyItem,
+    MethodologyProfile,
+    MethodologyResult,
+    ReconSnapshot,
+    ReconSnapshotItem,
+    ScreenshotAnnotation,
+)
 from backend.app.models.payload import Payload
+from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.report import Report
+from backend.app.models.runner import RunnerJobEvent, RunnerNode
 from backend.app.models.scan import ScanImport, ScanResult
 from backend.app.models.scope import ScopeItem
 from backend.app.models.setting import ApplicationSetting
@@ -39,10 +59,29 @@ __all__ = [
     "Link",
     "LinkCollection",
     "Note",
+    "AssetEndpoint",
+    "AssetHost",
+    "AssetService",
+    "AssetUrl",
+    "CommandRun",
+    "CredentialUsage",
+    "EndpointParameter",
+    "EngagementChecklistItem",
+    "FootholdSession",
+    "HttpMessage",
+    "MethodologyItem",
+    "MethodologyProfile",
+    "MethodologyResult",
     "Payload",
+    "ReconSnapshot",
+    "ReconSnapshotItem",
+    "RefreshToken",
     "Report",
+    "RunnerJobEvent",
+    "RunnerNode",
     "ScanImport",
     "ScanResult",
+    "ScreenshotAnnotation",
     "ScopeItem",
     "ApplicationSetting",
     "EntityTag",

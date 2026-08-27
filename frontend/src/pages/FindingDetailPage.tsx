@@ -9,15 +9,19 @@ import Modal from "../components/ui/Modal";
 import toast from "react-hot-toast";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import { canManageEngagements, canViewEvidence } from "../lib/capabilities";
+import { useAuth } from "../useAuth";
 
 const SEVERITIES = ["informational","low","medium","high","critical"].map(v => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) }));
 const STATUSES = ["draft","confirmed","needs_review","ready_for_report","reported","closed","false_positive","retest_passed","retest_failed"]
   .map(v => ({ value: v, label: v.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) }));
 
 export default function FindingDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const canEditFinding = canManageEngagements(user);
   const { data: finding } = useQuery({ queryKey: ["finding", id], queryFn: () => findingsApi.get(id!) });
   const [editing, setEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -25,7 +29,7 @@ export default function FindingDetailPage() {
   const { data: engagementEvidence = [] } = useQuery({
     queryKey: ["evidence", "finding-editor", finding?.engagement_id],
     queryFn: () => evidenceApi.list({ engagement_id: finding!.engagement_id }),
-    enabled: !!finding?.engagement_id,
+    enabled: canEditFinding && canViewEvidence(user) && !!finding?.engagement_id,
   });
 
   const updateMut = useMutation({
@@ -71,15 +75,19 @@ export default function FindingDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={editing ? () => setEditing(false) : startEdit}>{editing ? "Cancel" : "Edit"}</Button>
-          <Button
-            variant="danger"
-            size="sm"
-            onClick={() => setShowDeleteModal(true)}
-            disabled={deleteMut.isPending}
-          >
-            Delete
-          </Button>
+          {canEditFinding && (
+            <>
+              <Button variant="secondary" size="sm" onClick={editing ? () => setEditing(false) : startEdit}>{editing ? "Cancel" : "Edit"}</Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setShowDeleteModal(true)}
+                disabled={deleteMut.isPending}
+              >
+                Delete
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -104,7 +112,7 @@ export default function FindingDetailPage() {
           {finding.references && <Section title="References" content={finding.references} />}
         </div>
       )}
-      {showDeleteModal && (
+      {canEditFinding && showDeleteModal && (
         <Modal title="Delete Finding" onClose={() => setShowDeleteModal(false)} width="max-w-md">
           <div className="space-y-4">
             <p className="text-sm text-gray-300">

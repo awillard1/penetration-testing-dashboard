@@ -32,6 +32,13 @@ class Settings(BaseSettings):
 
     secret_key: str = "change-this-in-production-use-a-random-32-char-string"
     auth_mode: str = "local"
+    access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 7
+    bootstrap_admin_username: str = "admin"
+    bootstrap_admin_password: str = "change-me-now"
+    auth_cookie_secure: bool = False
+    access_cookie_name: str = "ptd_access_token"
+    refresh_cookie_name: str = "ptd_refresh_token"
 
     max_upload_size: int = 100 * 1024 * 1024  # 100 MB
     allowed_origins: List[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]

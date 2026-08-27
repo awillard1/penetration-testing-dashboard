@@ -686,3 +686,51 @@ class SearchResult(BaseModel):
     subtitle: Optional[str] = None
     engagement_id: Optional[str] = None
     url: Optional[str] = None
+
+
+# ── Auth ───────────────────────────────────────────────────────────────────────
+
+class UserRead(BaseModel):
+    id: str
+    username: str
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    role: str
+    is_active: bool
+    client_id: Optional[str] = None
+    auth_provider: str = "local"
+
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    role: str = "penetration_tester"
+    is_active: bool = True
+    client_id: Optional[str] = None
+
+    @field_validator("role")
+    @classmethod
+    def validate_role(cls, value: str) -> str:
+        allowed = {"admin", "penetration_tester", "reviewer", "client"}
+        if value not in allowed:
+            raise ValueError(f"role must be one of {', '.join(sorted(allowed))}")
+        return value
+
+
+class AuthLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class AuthRefreshRequest(BaseModel):
+    refresh_token: Optional[str] = None
+
+
+class AuthTokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    user: UserRead

@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { findingsApi, engagementsApi, evidenceApi } from "../api/client";
+import { canManageEngagements, canViewEvidence } from "../lib/capabilities";
+import { useAuth } from "../useAuth";
 import Button from "../components/ui/Button";
 import { SeverityBadge, StatusBadge } from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
@@ -15,19 +17,25 @@ const STATUSES = ["draft","confirmed","needs_review","ready_for_report","reporte
   .map(v => ({ value: v, label: v.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) }));
 
 export default function FindingsPage() {
+  const { user } = useAuth();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const canManageFindings = canManageEngagements(user);
   const [showModal, setShowModal] = useState(false);
   const [filterSev, setFilterSev] = useState("");
   const [filterEng, setFilterEng] = useState("");
   const [form, setForm] = useState({ engagement_id: "", title: "", severity: "medium", status: "draft", description: "", remediation: "" });
 
   const { data: findings = [] } = useQuery({ queryKey: ["findings", filterEng, filterSev], queryFn: () => findingsApi.list({ ...(filterEng && { engagement_id: filterEng }), ...(filterSev && { severity: filterSev }) }) });
-  const { data: engagements = [] } = useQuery({ queryKey: ["engagements"], queryFn: () => engagementsApi.list() });
+  const { data: engagements = [] } = useQuery({
+    queryKey: ["engagements"],
+    queryFn: () => engagementsApi.list(),
+    enabled: canManageFindings,
+  });
   const { data: engagementEvidence = [] } = useQuery({
     queryKey: ["evidence", "finding-create", form.engagement_id],
     queryFn: () => evidenceApi.list({ engagement_id: form.engagement_id }),
-    enabled: !!form.engagement_id,
+    enabled: canManageFindings && canViewEvidence(user) && !!form.engagement_id,
   });
 
   const createMut = useMutation({
@@ -52,7 +60,9 @@ export default function FindingsPage() {
         <div className="flex gap-2">
           <Select options={engOpts} value={filterEng} onChange={e => setFilterEng(e.target.value)} />
           <Select options={sevOpts} value={filterSev} onChange={e => setFilterSev(e.target.value)} />
-          <Button variant="primary" size="sm" onClick={() => setShowModal(true)}><Plus size={14} /> Add Finding</Button>
+          {canManageFindings && (
+            <Button variant="primary" size="sm" onClick={() => setShowModal(true)}><Plus size={14} /> Add Finding</Button>
+          )}
         </div>
       </div>
       <div className="space-y-2">
@@ -69,7 +79,7 @@ export default function FindingsPage() {
         ))}
         {(findings as Array<unknown>).length === 0 && <div className="text-center py-8 text-gray-500">No findings yet.</div>}
       </div>
-      {showModal && (
+      {canManageFindings && showModal && (
         <Modal title="New Finding" onClose={() => setShowModal(false)} width="max-w-2xl">
           <div className="space-y-3">
             <Select label="Engagement *" value={form.engagement_id} onChange={e => setForm(f => ({ ...f, engagement_id: e.target.value }))} options={[{ value: "", label: "Select…" }, ...(engagements as Array<{ id: string; name: string }>).map(e => ({ value: e.id, label: e.name }))]} />
