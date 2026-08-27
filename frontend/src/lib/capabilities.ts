@@ -38,7 +38,7 @@ export function canRetest(user: AppUser) {
 }
 
 export function canViewEvidence(user: AppUser) {
-  return !!user && REVIEWER_ROLES.has(user.role);
+  return !!user && OPERATOR_ROLES.has(user.role);
 }
 
 export function canManageUsers(user: AppUser) {

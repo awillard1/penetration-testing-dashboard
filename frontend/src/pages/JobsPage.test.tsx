@@ -26,7 +26,7 @@ describe("JobsPage", () => {
       onerror: ((this: EventSource, ev: Event) => unknown) | null = null;
       addEventListener = vi.fn();
       close = vi.fn();
-      constructor(_url: string) {}
+      constructor() {}
     }
     // @ts-expect-error test shim
     global.EventSource = MockEventSource;

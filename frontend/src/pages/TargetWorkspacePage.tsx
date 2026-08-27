@@ -182,7 +182,7 @@ export default function TargetWorkspacePage() {
     queryFn: () => operatorApi.methodologyProfiles(),
   });
 
-  const endpointRows = workspace.inventory?.endpoints || [];
+  const endpointRows = useMemo(() => workspace.inventory?.endpoints || [], [workspace.inventory?.endpoints]);
   const hostRows = workspace.inventory?.hosts || [];
   const serviceRows = workspace.inventory?.services || [];
   const urlRows = workspace.inventory?.urls || [];

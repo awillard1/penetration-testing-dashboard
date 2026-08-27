@@ -1,36 +1,38 @@
 # Penetration Testing Dashboard
 
-A local-first penetration test engagement management platform. Built with FastAPI (Python) + React (TypeScript). Runs on Windows and Linux.
+A local-first penetration testing platform built with FastAPI and React for engagement management, operator workflows, evidence handling, and authenticated RBAC-controlled delivery.
 
 ## Features
 
-- **Engagement Management** — track clients, engagements, scope, and status
-- **Findings Tracker** — CVSS scoring, severity badges, remediation workflow
-- **Credential Vault** — AES-256 (Fernet) encrypted secrets, reveal-on-demand
-- **Command Library** — reusable commands with `{{variable}}` substitution
-- **Payload Library** — injection payloads organized by category
-- **Scan Import** — parse Nmap XML, Nessus `.nessus`, Nuclei JSONL, ffuf JSON, Burp Suite XML
-- **Report Generation** — HTML, Markdown, DOCX, and JSON export
-- **Notes** — per-engagement Markdown notes with autosave
-- **Links** — curated reference library with favorites and open tracking
-- **Activity Feed** — full audit trail
-- **Scheduled Backups** — daily ZIP backup of the SQLite database
-- **File Watcher** — monitor directories for new scan files (watchdog)
-- **Dashboard** — summary stats and severity chart
+- Command center: dashboard, my work, timeline, tasks, and reporting
+- Engagement workflow: engagements, targets, recon, testing, findings, evidence, credentials, and target workspaces
+- Operator operations: command preview/execute, job tracking, external runners, scan imports, Burp ingest, and methodology coverage
+- Knowledge base: payloads, notes, resources, reusable commands, and supporting references
+- Delivery workflow: reports plus review/retest workflows
+- Authentication and RBAC: local login, bearer/refresh tokens, bootstrap admin, client-scoped findings, reviewer access, and operator-only execution surfaces
+- Security controls: Argon2 password hashing, Fernet-encrypted secrets, masked sensitive HTTP headers, and scope-aware execution safeguards
 
----
+## Roles and capabilities
 
-## Prerequisites
+- **Admin**: full platform access, including user/bootstrap administration
+- **Penetration tester / operator**: full workflow access across engagements, jobs, runners, credentials, evidence, and delivery
+- **Reviewer**: review/retest and findings access without operator execution surfaces
+- **Client**: restricted authenticated access to client-scoped findings
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Python | 3.11+ | `python3` (Linux/macOS) or `python` (Windows) |
-| Node.js | 18+ | Only needed to build the frontend |
-| npm | 9+ | Bundled with Node.js |
+Frontend capability checks are centralized in `frontend/src/lib/capabilities.ts`.
 
----
+## Key workflows restored on the auth branch
 
-## Quick Start
+- `/workspace/:id` target workspace
+- `/my-work`
+- `/testing`
+- `/recon`
+- `/jobs`
+- `/runners`
+- `/review`
+- Workflow sidebar sections: Command Center, Engagement, Operations, Knowledge, Delivery, Admin
+
+## Quick start
 
 ### Linux / macOS
 
@@ -39,8 +41,6 @@ git clone https://github.com/awillard1/penetration-testing-dashboard
 cd penetration-testing-dashboard
 bash scripts/start.sh
 ```
-
-Open **http://localhost:8765**
 
 ### Windows (PowerShell)
 
@@ -51,172 +51,65 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\scripts\start.ps1
 ```
 
-Open **http://localhost:8765**
+Open `http://localhost:8765`.
 
----
-
-## Development Mode
-
-Runs the backend with hot-reload and the Vite frontend dev server simultaneously.
+## Development
 
 ```bash
-# Linux/macOS
+# backend + frontend dev mode
 bash scripts/dev.sh
 
-# Windows
-.\scripts\dev.ps1
-```
-
-- Backend API: **http://localhost:8765/api/v1**
-- Interactive API docs: **http://localhost:8765/docs**
-- Frontend (Vite): **http://localhost:5173** (proxies `/api` to backend)
-
----
-
-## Configuration
-
-Copy `.env.example` to `.env` and edit as needed:
-
-```bash
-cp .env.example .env
-```
-
-Key variables:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PENTEST_DASHBOARD_SECRET_KEY` | *(auto-generated)* | Fernet encryption key for credentials |
-| `PENTEST_DASHBOARD_DB_URL` | `sqlite:///data/db/pentest.db` | SQLite database path |
-| `PENTEST_DASHBOARD_HOST` | `0.0.0.0` | Bind address |
-| `PENTEST_DASHBOARD_PORT` | `8765` | Port |
-| `PENTEST_DASHBOARD_DATA_DIR` | `data` | Root data directory |
-| `PENTEST_DASHBOARD_BACKUP_RETENTION_DAYS` | `30` | Days to keep backups |
-
-> **Note**: The database is a local SQLite file — no external services required.
-
----
-
-## Seed Demo Data
-
-```bash
-# Linux/macOS
-source .venv/bin/activate
-python scripts/seed.py
-
-# Windows
-.\.venv\Scripts\Activate.ps1
-python scripts/seed.py
-```
-
----
-
-## Importing Scan Results
-
-Upload scan files via **Scans** → **Upload Scan File**.
-
-| Format | Extension | Auto-detect |
-|--------|-----------|-------------|
-| Nmap | `.xml` | ✓ |
-| Nessus | `.nessus` | ✓ |
-| Nuclei | `.jsonl`, `.json` | ✓ |
-| ffuf | `.json` | ✓ |
-| Burp Suite | `.xml` | ✓ |
-
-Use scan type **"auto"** to let the importer detect the format from file content.
-
----
-
-## Running Tests
-
-```bash
-# Backend (pytest)
-source .venv/bin/activate
-pip install -r requirements-dev.txt
-pytest backend/tests/ -v
-
-# Frontend (vitest)
-cd frontend
-npm test
-```
-
----
-
-## Building the Frontend Manually
-
-```bash
+# frontend only
 cd frontend
 npm install
-npm run build       # outputs to frontend/dist/
-npm run lint        # ESLint
+npm run lint
+npm run build
+npm test
+
+# backend
+cd ..
+python -m pytest backend/tests/test_api.py -q
 ```
 
-The FastAPI backend serves `frontend/dist/` as static files and handles SPA routing.
+- Backend docs: `http://localhost:8765/api/docs`
+- `/docs`, `/api`, and `/api/v1` redirect to the API docs
+- Vite dev server proxies `/api` to the backend
 
----
+## Authentication configuration
 
-## Project Structure
+Key environment variables:
 
-```
-penetration-testing-dashboard/
-├── backend/
-│   ├── app/
-│   │   ├── api/            # FastAPI routers (21 endpoint files)
-│   │   ├── integrations/   # Scan file parsers
-│   │   ├── models/         # SQLAlchemy ORM models
-│   │   ├── reporting/      # HTML / Markdown / DOCX report builders
-│   │   ├── schemas/        # Pydantic schemas
-│   │   ├── utils/          # Generic CRUD helpers
-│   │   ├── workers/        # APScheduler, backup worker, file watcher
-│   │   ├── config.py       # Settings (Pydantic BaseSettings)
-│   │   ├── database.py     # Async SQLAlchemy engine
-│   │   ├── main.py         # FastAPI application entry point
-│   │   └── security.py     # Argon2 password hashing, Fernet encryption
-│   ├── alembic/            # Database migrations
-│   └── tests/              # Pytest async integration tests
-├── frontend/
-│   ├── src/
-│   │   ├── api/            # Typed API client (axios)
-│   │   ├── components/     # Layout, UI components
-│   │   └── pages/          # React route pages
-│   └── dist/               # Built static files (served by FastAPI)
-├── data/                   # Runtime data (gitignored)
-│   ├── db/                 # SQLite database
-│   ├── backups/            # Automatic ZIP backups
-│   ├── uploads/            # Uploaded evidence files
-│   └── reports/            # Generated report files
-├── scripts/
-│   ├── start.sh            # Linux/macOS start script
-│   ├── start.ps1           # Windows start script
-│   ├── dev.sh              # Linux/macOS dev mode
-│   ├── dev.ps1             # Windows dev mode
-│   └── seed.py             # Demo data seeder
-├── alembic.ini
-├── requirements.txt
-├── .env.example
-└── docker-compose.yml
-```
+- `PENTEST_DASHBOARD_SECRET_KEY`
+- `PENTEST_DASHBOARD_ACCESS_TOKEN_EXPIRE_MINUTES`
+- `PENTEST_DASHBOARD_REFRESH_TOKEN_EXPIRE_DAYS`
+- `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_USERNAME`
+- `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_PASSWORD`
+- `PENTEST_DASHBOARD_OPERATOR_COMMAND_RUNNER_ENABLED`
+- `PENTEST_DASHBOARD_OPERATOR_BURP_INGEST_ENABLED`
 
----
+## Scan and evidence workflows
 
-## Docker
+- Scan uploads support Nmap XML, Nessus, Nuclei JSON/JSONL, ffuf JSON, Burp XML, and generic JSON normalization
+- Evidence supports upload, detail, preview, inline/file access, download, and finding attachment/detachment
+- Operator recon snapshots and diffs preserve workspace history over time
+
+## Testing
 
 ```bash
-docker compose up --build
+cd frontend
+npm test
+npm run lint
+npm run build
+
+cd ..
+python -m pytest backend/tests/test_api.py -q
 ```
 
-The container listens on port **8765** and stores data in a named volume.
+## Notes
 
----
-
-## Security Notes
-
-- Credentials are encrypted at rest using **AES-256-GCM** (Fernet) — the plaintext secret is never stored or logged
-- The encryption key is derived from `PENTEST_DASHBOARD_SECRET_KEY` — keep this value secret
-- Passwords (for future user accounts) are hashed with **Argon2id**
-- All API responses that include credentials omit the `encrypted_secret` field; use `POST /api/v1/credentials/{id}/reveal` to decrypt on demand
-- The application is designed to run **locally** (loopback or LAN only) — do not expose port 8765 to the internet without adding authentication middleware
-
----
+- Credentials are encrypted at rest and only revealed on demand through authenticated APIs
+- Command execution remains explicit-confirmation only and keeps scope warnings/override audit fields
+- External runner auth uses runner headers, while dashboard/operator APIs require user authentication
 
 ## License
 
