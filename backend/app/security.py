@@ -74,6 +74,7 @@ def create_access_token(
         "username": username,
         "role": role,
         "type": "access",
+        "jti": secrets.token_urlsafe(12),
         "iat": int(now.timestamp()),
         "exp": int((now + timedelta(minutes=expires_in_minutes)).timestamp()),
     }

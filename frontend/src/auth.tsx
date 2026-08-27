@@ -6,6 +6,7 @@ import {
   getStoredRefreshToken,
   setStoredTokens,
   type AuthTokenResponse,
+  type AuthUser,
 } from "./api/client";
 import { AuthContext, type AuthContextValue } from "./auth-context";
 

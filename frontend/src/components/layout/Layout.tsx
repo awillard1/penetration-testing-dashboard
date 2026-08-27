@@ -24,8 +24,8 @@ import {
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { searchApi } from "../../api/client";
+import { useAuth } from "../../useAuth";
 import Button from "../ui/Button";
-import { useAuth } from "../../auth";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
