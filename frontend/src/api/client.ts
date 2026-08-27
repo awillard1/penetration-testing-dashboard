@@ -212,6 +212,7 @@ export const operatorApi = {
   stopCommand: (id: string) => api.post(`/operator/command-runs/${id}/stop`).then((r) => r.data),
   jobs: (params: Record<string, unknown>) => getList("/operator/jobs", params),
   httpMessages: (params: Record<string, unknown>) => getList("/operator/http-messages", params),
+  credentialUsages: (credentialId: string) => getList(`/operator/credentials/${credentialId}/usages`),
 };
 
 export const healthApi = {
