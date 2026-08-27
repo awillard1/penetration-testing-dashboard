@@ -65,10 +65,15 @@ export const findingsApi = {
 export const evidenceApi = {
   list: (params?: object) => getList("/evidence", params as Record<string, unknown>),
   get: (id: string) => getOne(`/evidence/${id}`),
+  detail: (id: string) => getOne(`/evidence/${id}/detail`),
+  preview: (id: string) => getOne(`/evidence/${id}/preview`),
   create: (data: unknown) => createOne("/evidence", data),
   update: (id: string, data: unknown) => updateOne(`/evidence/${id}`, data),
   remove: (id: string) => deleteOne(`/evidence/${id}`),
-  downloadUrl: (id: string) => `/api/v1/evidence/${id}/download`,
+  attachToFinding: (id: string, findingId: string) => api.post(`/evidence/${id}/findings/${findingId}`).then((r) => r.data),
+  detachFromFinding: (id: string, findingId: string) => api.delete(`/evidence/${id}/findings/${findingId}`).then((r) => r.data),
+  downloadUrl: (id: string) => `/api/v1/evidence/${id}/file?download=true`,
+  inlineUrl: (id: string) => `/api/v1/evidence/${id}/file`,
   upload: (engagementId: string, title: string, evidenceType: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

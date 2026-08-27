@@ -22,6 +22,7 @@ A local-first penetration test engagement management platform. Built with FastAP
 - **Operator Command Runner** — explicit preview/edit/confirm execution with scope checks and job history
 - **Jobs Dashboard** — running/completed/failed/stopped process tracking with runtime and output
 - **HTTP Evidence Inspector Foundation** — captured request/response records with sensitive-header masking
+- **Evidence Operations Workspace** — searchable evidence list with detail editing, inline preview, download/open, and finding association controls
 - **Burp Ingest Foundation** — API path to send request/response traffic into targets/endpoints/evidence/finding candidates
 - **Generic Normalization Importer** — adaptable JSON import path for ffuf/ferox/gobuster/openvas/hashcat-style records
 
@@ -77,6 +78,14 @@ bash scripts/dev.sh
 - Backend API: **http://localhost:8765/api/v1**
 - Interactive API docs: **http://localhost:8765/docs**
 - Frontend (Vite): **http://localhost:5173** (proxies `/api` to backend)
+
+---
+
+## Operator Planning Docs
+
+- `OPERATOR_GAP_ANALYSIS.md` — audited functionality gaps and remediation status
+- `OPERATOR_WORKFLOWS.md` — operator-centric daily workflow map
+- `ARCHITECTURE.md` — current architecture and near-term evolution
 
 ---
 

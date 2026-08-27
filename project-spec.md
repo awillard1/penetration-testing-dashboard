@@ -15,6 +15,20 @@ The current codebase includes a practical operator-grade expansion foundation:
 - Structured credential usage relationships with validation state tracking.
 - Foothold/session tracking and engagement readiness/closeout checklist models.
 - Dashboard summary upgraded with coverage/testing/job/queue KPIs.
+- Evidence workflow upgraded with secure file retrieval (`/evidence/{id}/file`), detail endpoint, preview endpoint, and evidence↔finding association controls.
+
+## Implementation Update (Audit-First Phase 1)
+
+- Completed broad operator workflow audit and documented outcomes in `OPERATOR_GAP_ANALYSIS.md`.
+- Added `OPERATOR_WORKFLOWS.md` and `ARCHITECTURE.md` to formalize operator journeys and system structure.
+- Rebuilt Evidence UI into a list+detail workspace with:
+  - row click/open behavior,
+  - metadata edit/save,
+  - explicit delete confirmation,
+  - inline image/PDF/text previews (pretty/raw),
+  - direct open/download actions,
+  - finding association attach/detach,
+  - explicit mutation error notifications.
 
 
 
