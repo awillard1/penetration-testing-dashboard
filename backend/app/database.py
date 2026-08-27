@@ -36,10 +36,13 @@ async def get_session() -> AsyncIterator[AsyncSession]:
 
 
 async def _run_async_migrations() -> None:
-    """Run Alembic migrations asynchronously without using the Alembic CLI."""
+    """Run Alembic migrations asynchronously."""
     import backend.app.models  # noqa: F401 - register all models
     from backend.app.models.base import Base
     from sqlalchemy.ext.asyncio import async_engine_from_config
+    from alembic.config import Config
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
 
     url = _db_url
     if url.startswith("sqlite:///") and not url.startswith("sqlite+aiosqlite:///"):
@@ -53,16 +56,18 @@ async def _run_async_migrations() -> None:
 
     async with connectable.connect() as connection:
         def do_run_migrations(conn):
-            from alembic import context
-            from alembic.config import Config
-
+            # Create migration context with the connection
+            migration_ctx = MigrationContext.configure(conn, target_metadata=Base.metadata)
+            operations = Operations(migration_ctx)
+            
+            # Stamp the database with the latest revision
+            # This checks if migrations need to be run and applies them
             alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
             alembic_cfg = Config(str(alembic_ini))
             alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
-
-            context.configure(connection=conn, target_metadata=Base.metadata)
-            with context.begin_transaction():
-                context.run_migrations()
+            
+            from alembic import command
+            command.upgrade(alembic_cfg, "head")
 
         await connection.run_sync(do_run_migrations)
 
