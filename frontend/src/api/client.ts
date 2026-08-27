@@ -143,7 +143,9 @@ export const downloadFile = async (path: string, filename: string) => {
   const anchor = document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  document.body.appendChild(anchor);
   anchor.click();
+  anchor.remove();
   window.URL.revokeObjectURL(url);
 };
 
@@ -202,10 +204,17 @@ export const findingsApi = {
 export const evidenceApi = {
   list: (params?: object) => getList("/evidence", params as Record<string, unknown>),
   get: (id: string) => getOne(`/evidence/${id}`),
+  detail: (id: string) => getOne(`/evidence/${id}/detail`),
+  preview: (id: string) => getOne(`/evidence/${id}/preview`),
   create: (data: unknown) => createOne("/evidence", data),
   update: (id: string, data: unknown) => updateOne(`/evidence/${id}`, data),
   remove: (id: string) => deleteOne(`/evidence/${id}`),
-  downloadUrl: (id: string) => `/api/v1/evidence/${id}/download`,
+  attachToFinding: (id: string, findingId: string) =>
+    api.post(`/evidence/${id}/findings/${findingId}`).then((r) => r.data),
+  detachFromFinding: (id: string, findingId: string) =>
+    api.delete(`/evidence/${id}/findings/${findingId}`).then((r) => r.data),
+  downloadUrl: (id: string) => `/api/v1/evidence/${id}/file?download=true`,
+  inlineUrl: (id: string) => `/api/v1/evidence/${id}/file`,
   upload: (engagementId: string, title: string, evidenceType: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -279,6 +288,9 @@ export const payloadsApi = {
 
 export const scansApi = {
   list: (params?: object) => getList("/scans", params as Record<string, unknown>),
+  get: (id: string) => getOne(`/scans/${id}`),
+  detail: (id: string) => getOne(`/scans/${id}/detail`),
+  update: (id: string, data: unknown) => updateOne(`/scans/${id}`, data),
   upload: (engagementId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);
@@ -340,6 +352,43 @@ export const scopeApi = {
 export const settingsApi = {
   list: () => getList("/settings"),
   set: (key: string, value: string | null) => api.put(`/settings/${key}`, { value }).then((r) => r.data),
+};
+
+export const operatorApi = {
+  workspace: (engagementId: string, targetId: string) =>
+    getOne(
+      `/operator/workspace?engagement_id=${encodeURIComponent(engagementId)}&target_id=${encodeURIComponent(targetId)}`,
+    ),
+  methodologyProfiles: () => getList("/operator/methodology/profiles"),
+  upsertMethodologyResult: (data: unknown) => api.put("/operator/methodology/results", data).then((r) => r.data),
+  commandPreview: (data: unknown) => api.post("/operator/command-runs/preview", data).then((r) => r.data),
+  executeCommand: (data: unknown) => api.post("/operator/command-runs/execute", data).then((r) => r.data),
+  listCommandRuns: (params: Record<string, unknown>) => getList("/operator/command-runs", params),
+  commandRunsStreamUrl: (engagementId: string, targetId?: string) =>
+    `/api/v1/operator/command-runs/stream?engagement_id=${encodeURIComponent(engagementId)}${
+      targetId ? `&target_id=${encodeURIComponent(targetId)}` : ""
+    }`,
+  stopCommand: (id: string) => api.post(`/operator/command-runs/${id}/stop`).then((r) => r.data),
+  jobs: (params: Record<string, unknown>) => getList("/operator/jobs", params),
+  httpMessages: (params: Record<string, unknown>) => getList("/operator/http-messages", params),
+  credentialUsages: (credentialId: string) => getList(`/operator/credentials/${credentialId}/usages`),
+  endpointDetail: (endpointId: string) => getOne(`/operator/endpoints/${endpointId}/detail`),
+  updateEndpoint: (endpointId: string, data: unknown) => updateOne(`/operator/endpoints/${endpointId}`, data),
+  recon: (params: Record<string, unknown>) => getList("/operator/recon", params),
+  createReconSnapshot: (data: unknown) => api.post("/operator/recon/snapshots", data).then((r) => r.data),
+  listReconSnapshots: (params: Record<string, unknown>) => getList("/operator/recon/snapshots", params),
+  reconDiff: (baseSnapshotId: string, compareSnapshotId: string) =>
+    getOne(
+      `/operator/recon/diff?base_snapshot_id=${encodeURIComponent(baseSnapshotId)}&compare_snapshot_id=${encodeURIComponent(compareSnapshotId)}`,
+    ),
+};
+
+export const runnersApi = {
+  list: () => getList("/runners"),
+  create: (data: unknown) => createOne("/runners", data),
+  update: (id: string, data: unknown) => updateOne(`/runners/${id}`, data),
+  revoke: (id: string) => api.post(`/runners/${id}/revoke`).then((r) => r.data),
+  jobs: (id: string) => getList(`/runners/${id}/jobs`),
 };
 
 export const healthApi = {
