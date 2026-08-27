@@ -185,7 +185,7 @@ export default function DashboardPage() {
             <button onClick={() => navigate("/targets")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Untested endpoints: {summary.untested_endpoints || 0}</button>
             <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Pending review: {summary.pending_review || 0}</button>
             <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Retests pending: {summary.pending_retests || 0}</button>
-            <button onClick={() => navigate("/evidence")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Evidence gaps: {summary.pending_evidence || 0}</button>
+            <button onClick={() => navigate("/findings")} className="bg-gray-800 hover:bg-gray-700 text-xs text-gray-200 rounded px-2 py-2">Draft findings: {summary.draft_findings || 0}</button>
           </div>
         </div>
 

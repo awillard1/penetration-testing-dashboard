@@ -53,7 +53,7 @@ class AssetService(Base, UUIDMixin, TimestampMixin):
 
 class AssetUrl(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "asset_urls"
-    __table_args__ = (UniqueConstraint("service_id", "url", name="uq_asset_url"),)
+    __table_args__ = (UniqueConstraint("host_id", "url", name="uq_asset_url"),)
 
     engagement_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("engagements.id", ondelete="CASCADE"), nullable=False, index=True

@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 import asyncio
-import json
+import shlex
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import settings
@@ -49,6 +49,7 @@ from backend.app.services.operator_assets import (
 router = APIRouter()
 
 RUNNING_PROCESSES: dict[str, asyncio.subprocess.Process] = {}
+RUNNING_TASKS: dict[str, asyncio.Task[None]] = {}
 
 
 METHODOLOGY_SEED: dict[str, list[tuple[str, str]]] = {
@@ -190,6 +191,7 @@ async def _monitor_run(run_id: str, process: asyncio.subprocess.Process) -> None
         status=status,
     )
     RUNNING_PROCESSES.pop(run_id, None)
+    RUNNING_TASKS.pop(run_id, None)
 
 
 async def _ensure_methodology_seed(session: AsyncSession) -> None:
@@ -212,6 +214,24 @@ async def _ensure_methodology_seed(session: AsyncSession) -> None:
                 )
             )
     await session.flush()
+
+
+def _resolve_working_directory(raw_path: str | None) -> Path:
+    base_cwd = Path.cwd().resolve()
+    base_data = settings.data_dir.resolve()
+    selector = (raw_path or "repo").strip().lower()
+    if selector == "repo":
+        return base_cwd
+    if selector == "data":
+        return base_data
+    raise HTTPException(400, "working_directory must be one of: repo, data")
+
+
+def _build_command_args(command_text: str) -> list[str]:
+    args = shlex.split(command_text, posix=True)
+    if not args:
+        raise HTTPException(400, "command_text cannot be empty")
+    return args
 
 
 @router.post("/methodology/seed")
@@ -290,12 +310,25 @@ async def get_workspace(
         raise HTTPException(404, "Target not found")
 
     host_filters = [AssetHost.engagement_id == engagement_id]
-    if target.hostname or target.ip_address:
+    hostname_match = target.hostname
+    ip_match = target.ip_address
+    if (not hostname_match and not ip_match) and target.url:
+        hostname_match, _, _ = parse_url_for_endpoint(target.url)
+    if hostname_match or ip_match:
+        host_match_filters = []
+        if hostname_match:
+            host_match_filters.append(AssetHost.hostname == hostname_match)
+        if ip_match:
+            host_match_filters.append(AssetHost.ip_address == ip_match)
+        host_identity_filter = host_match_filters[0] if len(host_match_filters) == 1 else or_(*host_match_filters)
         host_filters.append(
-            (AssetHost.hostname == target.hostname) if target.hostname else (AssetHost.ip_address == target.ip_address)
+            or_(
+                AssetHost.target_id == target.id,
+                and_(AssetHost.target_id.is_(None), host_identity_filter),
+            )
         )
-    if target.id:
-        host_filters.append((AssetHost.target_id == target.id) | (AssetHost.target_id.is_(None)))
+    else:
+        host_filters.append(AssetHost.target_id == target.id)
 
     hosts = (await session.execute(select(AssetHost).where(*host_filters))).scalars().all()
     host_ids = [h.id for h in hosts]
@@ -333,13 +366,19 @@ async def get_workspace(
     credentials = (
         await session.execute(select(Credential).where(Credential.engagement_id == engagement_id, Credential.target_id == target_id))
     ).scalars().all()
-    findings = (
-        await session.execute(
-            select(Finding)
-            .where(Finding.engagement_id == engagement_id)
-            .where((Finding.affected_endpoints.ilike(f"%{target.hostname or ''}%")) | (Finding.affected_endpoints.ilike(f"%{target.ip_address or ''}%")))
-        )
-    ).scalars().all()
+    finding_filters = [Finding.engagement_id == engagement_id]
+    endpoint_filters = []
+    if target.hostname:
+        endpoint_filters.append(Finding.affected_endpoints.ilike(f"%{target.hostname}%"))
+    if target.ip_address:
+        endpoint_filters.append(Finding.affected_endpoints.ilike(f"%{target.ip_address}%"))
+    if target.url:
+        endpoint_filters.append(Finding.affected_endpoints.ilike(f"%{target.url}%"))
+    if endpoint_filters:
+        finding_filters.append(or_(*endpoint_filters))
+    else:
+        finding_filters.append(Finding.id == "__no_findings__")
+    findings = (await session.execute(select(Finding).where(*finding_filters))).scalars().all()
     evidence = (
         await session.execute(select(Evidence).where(Evidence.engagement_id == engagement_id, Evidence.target_id == target_id))
     ).scalars().all()
@@ -613,7 +652,7 @@ async def execute_command_run(body: CommandExecuteRequest, session: AsyncSession
         if cmd:
             template_name = cmd.name
 
-    working_dir = body.working_directory or str(Path.cwd())
+    resolved_working_dir = _resolve_working_directory(body.working_directory)
     run = CommandRun(
         engagement_id=body.engagement_id,
         target_id=body.target_id,
@@ -623,7 +662,7 @@ async def execute_command_run(body: CommandExecuteRequest, session: AsyncSession
         command_preview=body.command_text,
         command_executed=body.command_text,
         status="queued",
-        working_directory=working_dir,
+        working_directory=str(resolved_working_dir),
         explicit_confirmation=True,
         scope_warning=scope_warning,
         scope_override=body.scope_override,
@@ -632,20 +671,18 @@ async def execute_command_run(body: CommandExecuteRequest, session: AsyncSession
     session.add(run)
     await session.flush()
 
-    command = body.command_text
+    command_args = _build_command_args(body.command_text)
     if body.execution_profile == "wsl":
-        command = f"wsl {body.command_text}"
-    elif body.execution_profile == "windows":
-        command = f"powershell -Command {json.dumps(body.command_text)}"
+        command_args = ["wsl", *command_args]
 
-    process = await asyncio.create_subprocess_shell(
-        command,
-        cwd=working_dir,
+    process = await asyncio.create_subprocess_exec(
+        *command_args,
+        cwd=str(resolved_working_dir),
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     RUNNING_PROCESSES[run.id] = process
-    asyncio.create_task(_monitor_run(run.id, process))
+    RUNNING_TASKS[run.id] = asyncio.create_task(_monitor_run(run.id, process))
 
     return {
         "id": run.id,
@@ -705,6 +742,9 @@ async def stop_command_run(run_id: str, session: AsyncSession = Depends(get_sess
     if not proc:
         return {"status": row.status, "message": "Process is not running"}
 
+    task = RUNNING_TASKS.pop(run_id, None)
+    if task and not task.done():
+        task.cancel()
     proc.terminate()
     await _set_run_state(run_id, status="stopped", ended_at=utcnow())
     RUNNING_PROCESSES.pop(run_id, None)

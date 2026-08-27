@@ -681,7 +681,7 @@ class DashboardSummary(BaseModel):
     scan_count: int = 0
     coverage_percent: float = 0.0
     pending_retests: int = 0
-    pending_evidence: int = 0
+    draft_findings: int = 0
     pending_review: int = 0
     running_jobs: int = 0
     completed_jobs: int = 0

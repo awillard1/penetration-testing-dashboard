@@ -120,8 +120,13 @@ async def engagement_summary(eng_id: str, session: AsyncSession = Depends(get_se
         )
     ).all()
     jobs = {s: c for s, c in jobs_by_status}
-    pending_retests = await count(Finding, Finding.engagement_id == eng_id, Finding.retest_result.is_(None))
-    pending_evidence = await count(Finding, Finding.engagement_id == eng_id, Finding.status == "draft")
+    pending_retests = await count(
+        Finding,
+        Finding.engagement_id == eng_id,
+        Finding.retest_date.is_not(None),
+        Finding.retest_result.is_(None),
+    )
+    draft_findings = await count(Finding, Finding.engagement_id == eng_id, Finding.status == "draft")
     pending_review = await count(Finding, Finding.engagement_id == eng_id, Finding.status.in_(["needs_review", "ready_for_review"]))
     coverage_percent = (tested_endpoints / total_endpoints * 100.0) if total_endpoints else 0.0
     day_counter = 0
@@ -146,7 +151,7 @@ async def engagement_summary(eng_id: str, session: AsyncSession = Depends(get_se
         scan_count=scans,
         coverage_percent=coverage_percent,
         pending_retests=pending_retests,
-        pending_evidence=pending_evidence,
+        draft_findings=draft_findings,
         pending_review=pending_review,
         running_jobs=jobs.get("running", 0),
         completed_jobs=jobs.get("completed", 0),

@@ -235,6 +235,7 @@ The container listens on port **8765** and stores data in a named volume.
 - The application is designed to run **locally** (loopback or LAN only) — do not expose port 8765 to the internet without adding authentication middleware
 - Command execution is **explicit-operator only** (`preview -> edit -> confirm -> run`) and persists audit fields for scope warnings/overrides
 - Burp ingest and command execution enforce scope checks and require explicit override reason when proceeding out of scope
+- Current process stop controls are in-memory per app process; for reliable stop behavior run the command runner in single-worker mode
 
 ---
 
