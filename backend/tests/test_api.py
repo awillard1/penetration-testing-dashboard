@@ -115,6 +115,14 @@ async def test_docs_redirect_alias(public_client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_api_root_redirect_aliases(public_client: AsyncClient):
+    for path in ("/api", "/api/", "/api/v1", "/api/v1/"):
+        r = await public_client.get(path, follow_redirects=False)
+        assert r.status_code in {302, 307}
+        assert r.headers["location"] == "/api/docs"
+
+
+@pytest.mark.asyncio
 async def test_protected_route_requires_bearer_token(public_client: AsyncClient):
     r = await public_client.get("/api/v1/clients")
     assert r.status_code == 401

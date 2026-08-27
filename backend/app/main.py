@@ -87,6 +87,15 @@ async def redoc_redirect() -> RedirectResponse:
 async def openapi_redirect() -> RedirectResponse:
     return RedirectResponse(url="/api/openapi.json")
 
+
+@app.get("/api", include_in_schema=False)
+@app.get("/api/", include_in_schema=False)
+@app.get("/api/v1", include_in_schema=False)
+@app.get("/api/v1/", include_in_schema=False)
+async def api_root_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/api/docs")
+
+
 # Serve built frontend if available
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():

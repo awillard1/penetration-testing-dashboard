@@ -90,11 +90,11 @@ Key variables:
 | `PENTEST_DASHBOARD_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
 | `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_USERNAME` | `admin` | First-run admin username |
 | `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_PASSWORD` | `change-me-now` | First-run admin password |
-| `PENTEST_DASHBOARD_DB_URL` | `sqlite:///data/db/pentest.db` | SQLite database path |
+| `PENTEST_DASHBOARD_DATABASE_URL` | `sqlite:///./data/database/dashboard.db` | SQLite database path |
 | `PENTEST_DASHBOARD_HOST` | `0.0.0.0` | Bind address |
 | `PENTEST_DASHBOARD_PORT` | `8765` | Port |
 | `PENTEST_DASHBOARD_DATA_DIR` | `data` | Root data directory |
-| `PENTEST_DASHBOARD_BACKUP_RETENTION_DAYS` | `30` | Days to keep backups |
+| `PENTEST_DASHBOARD_BACKUP_RETENTION` | `30` | Days to keep backups |
 
 > **Note**: The database is a local SQLite file — no external services required.
 
@@ -218,6 +218,7 @@ The container listens on port **8765** and stores data in a named volume.
 - The encryption key is derived from `PENTEST_DASHBOARD_SECRET_KEY` — keep this value secret
 - Passwords are hashed with **Argon2id**
 - The API uses bearer-token authentication with `POST /api/v1/auth/login` and token refresh with `POST /api/v1/auth/refresh`
+- `GET /api`, `GET /api/v1`, and `/docs` redirect to the interactive docs at `/api/docs`
 - The first local admin account is bootstrapped from `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_USERNAME` / `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_PASSWORD`
 - All API responses that include credentials omit the `encrypted_secret` field; use `POST /api/v1/credentials/{id}/reveal` to decrypt on demand
 - Keep the bootstrap admin password secret and rotate it immediately after first login
