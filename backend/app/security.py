@@ -1,10 +1,14 @@
-"""Security utilities: password hashing, secret encryption, token generation."""
+"""Security utilities: password hashing, secret encryption, and auth token helpers."""
 from __future__ import annotations
 
 import base64
+import hashlib
 import os
 import secrets
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
+import jwt
 from argon2 import PasswordHasher
 from cryptography.fernet import Fernet
 
@@ -45,3 +49,46 @@ def decrypt_secret(token: str) -> str:
 
 def generate_token(length: int = 32) -> str:
     return secrets.token_urlsafe(length)
+
+
+class TokenError(ValueError):
+    """Raised when a JWT cannot be validated."""
+
+
+def _get_signing_key() -> str:
+    from backend.app.config import settings
+
+    return settings.secret_key
+
+
+def create_access_token(
+    *,
+    user_id: str,
+    username: str,
+    role: str,
+    expires_in_minutes: int,
+) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "username": username,
+        "role": role,
+        "type": "access",
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=expires_in_minutes)).timestamp()),
+    }
+    return jwt.encode(payload, _get_signing_key(), algorithm="HS256")
+
+
+def decode_access_token(token: str) -> dict[str, Any]:
+    try:
+        payload = jwt.decode(token, _get_signing_key(), algorithms=["HS256"])
+    except jwt.PyJWTError as exc:
+        raise TokenError(str(exc)) from exc
+    if payload.get("type") != "access" or not payload.get("sub"):
+        raise TokenError("Invalid access token")
+    return payload
+
+
+def hash_token(token: str) -> str:
+    return hashlib.sha256(f"{_get_signing_key()}:{token}".encode()).hexdigest()

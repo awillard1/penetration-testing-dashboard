@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import Layout from "./components/layout/Layout";
+import { useAuth } from "./auth";
 import DashboardPage from "./pages/DashboardPage";
 import EngagementsPage from "./pages/EngagementsPage";
 import EngagementDetailPage from "./pages/EngagementDetailPage";
@@ -19,8 +20,11 @@ import ActivityPage from "./pages/ActivityPage";
 import ReportsPage from "./pages/ReportsPage";
 import ScansPage from "./pages/ScansPage";
 import SettingsPage from "./pages/SettingsPage";
+import LoginPage from "./pages/LoginPage";
 
 export default function App() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
   // Keyboard shortcut: Ctrl+K for global search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -34,28 +38,46 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  if (isLoading) {
+    return <div className="min-h-screen bg-gray-950 text-gray-400 flex items-center justify-center">Loading…</div>;
+  }
+
+  if (!isAuthenticated || !user) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    );
+  }
+
+  const isClient = user.role === "client";
+  const homePath = isClient ? "/findings" : "/dashboard";
+
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<DashboardPage />} />
-        <Route path="/engagements" element={<EngagementsPage />} />
-        <Route path="/engagements/:id" element={<EngagementDetailPage />} />
-        <Route path="/clients" element={<ClientsPage />} />
-        <Route path="/targets" element={<TargetsPage />} />
+        <Route path="/" element={<Navigate to={homePath} replace />} />
+        <Route path="/login" element={<Navigate to={homePath} replace />} />
+        {!isClient && <Route path="/dashboard" element={<DashboardPage />} />}
+        {!isClient && <Route path="/engagements" element={<EngagementsPage />} />}
+        {!isClient && <Route path="/engagements/:id" element={<EngagementDetailPage />} />}
+        {!isClient && <Route path="/clients" element={<ClientsPage />} />}
+        {!isClient && <Route path="/targets" element={<TargetsPage />} />}
         <Route path="/findings" element={<FindingsPage />} />
         <Route path="/findings/:id" element={<FindingDetailPage />} />
-        <Route path="/evidence" element={<EvidencePage />} />
-        <Route path="/credentials" element={<CredentialsPage />} />
-        <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/notes" element={<NotesPage />} />
-        <Route path="/commands" element={<CommandsPage />} />
-        <Route path="/payloads" element={<PayloadsPage />} />
-        <Route path="/links" element={<LinksPage />} />
-        <Route path="/scans" element={<ScansPage />} />
-        <Route path="/activity" element={<ActivityPage />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/settings" element={<SettingsPage />} />
+        {!isClient && <Route path="/evidence" element={<EvidencePage />} />}
+        {!isClient && <Route path="/credentials" element={<CredentialsPage />} />}
+        {!isClient && <Route path="/tasks" element={<TasksPage />} />}
+        {!isClient && <Route path="/notes" element={<NotesPage />} />}
+        {!isClient && <Route path="/commands" element={<CommandsPage />} />}
+        {!isClient && <Route path="/payloads" element={<PayloadsPage />} />}
+        {!isClient && <Route path="/links" element={<LinksPage />} />}
+        {!isClient && <Route path="/scans" element={<ScansPage />} />}
+        {!isClient && <Route path="/activity" element={<ActivityPage />} />}
+        {!isClient && <Route path="/reports" element={<ReportsPage />} />}
+        {!isClient && <Route path="/settings" element={<SettingsPage />} />}
+        <Route path="*" element={<Navigate to={homePath} replace />} />
       </Routes>
     </Layout>
   );

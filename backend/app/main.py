@@ -12,9 +12,10 @@ from typing import AsyncIterator
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.app.auth import AuthMiddleware
 from backend.app.api.router import api_router
 from backend.app.config import settings
 from backend.app.database import engine, init_db
@@ -67,8 +68,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AuthMiddleware)
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+@app.get("/docs", include_in_schema=False)
+async def docs_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/api/docs")
+
+
+@app.get("/redoc", include_in_schema=False)
+async def redoc_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/api/redoc")
+
+
+@app.get("/openapi.json", include_in_schema=False)
+async def openapi_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/api/openapi.json")
 
 # Serve built frontend if available
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
@@ -77,6 +94,10 @@ if _frontend_dist.exists():
 
     @app.get("/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
     async def spa_fallback(full_path: str) -> HTMLResponse:
+        if full_path.startswith("api") or full_path in {"docs", "redoc", "openapi.json"}:
+            from fastapi import HTTPException
+
+            raise HTTPException(status_code=404, detail="Not found")
         index = _frontend_dist / "index.html"
         return HTMLResponse(index.read_text())
 

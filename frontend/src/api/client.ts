@@ -1,11 +1,126 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
+
+export interface AuthUser {
+  id: string;
+  username: string;
+  email?: string | null;
+  display_name?: string | null;
+  role: "admin" | "penetration_tester" | "client";
+  is_active: boolean;
+  client_id?: string | null;
+  auth_provider: string;
+}
+
+export interface AuthTokenResponse {
+  access_token: string;
+  refresh_token: string;
+  token_type: "bearer";
+  expires_in: number;
+  user: AuthUser;
+}
+
+export const ACCESS_TOKEN_STORAGE_KEY = "ptd.access_token";
+export const REFRESH_TOKEN_STORAGE_KEY = "ptd.refresh_token";
+
+let accessToken =
+  typeof window !== "undefined" ? window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) : null;
 
 const api = axios.create({
   baseURL: "/api/v1",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
-export default api;
+const authApiClient = axios.create({
+  baseURL: "/api/v1",
+  headers: { "Content-Type": "application/json" },
+  withCredentials: true,
+});
+
+function getStorage() {
+  return typeof window !== "undefined" ? window.localStorage : null;
+}
+
+export function getStoredAccessToken() {
+  return getStorage()?.getItem(ACCESS_TOKEN_STORAGE_KEY) ?? null;
+}
+
+export function getStoredRefreshToken() {
+  return getStorage()?.getItem(REFRESH_TOKEN_STORAGE_KEY) ?? null;
+}
+
+export function setAccessToken(token: string | null) {
+  accessToken = token;
+  const storage = getStorage();
+  if (!storage) return;
+  if (token) {
+    storage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+  } else {
+    storage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  }
+}
+
+export function setStoredTokens(tokens: Pick<AuthTokenResponse, "access_token" | "refresh_token">) {
+  setAccessToken(tokens.access_token);
+  const storage = getStorage();
+  storage?.setItem(REFRESH_TOKEN_STORAGE_KEY, tokens.refresh_token);
+}
+
+export function clearStoredTokens() {
+  setAccessToken(null);
+  getStorage()?.removeItem(REFRESH_TOKEN_STORAGE_KEY);
+}
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  if (accessToken) {
+    config.headers.set("Authorization", ["Bearer", accessToken].join(" "));
+  }
+  return config;
+});
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken() {
+  if (!refreshPromise) {
+    const refreshToken = getStoredRefreshToken();
+    if (!refreshToken) return null;
+    refreshPromise = authApiClient
+      .post<AuthTokenResponse>("/auth/refresh", { refresh_token: refreshToken })
+      .then((response) => {
+        setStoredTokens(response.data);
+        return response.data.access_token;
+      })
+      .catch(() => {
+        clearStoredTokens();
+        return null;
+      })
+      .finally(() => {
+        refreshPromise = null;
+      });
+  }
+  return refreshPromise;
+}
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+    const status = error.response?.status;
+    if (!originalRequest || status !== 401 || originalRequest._retry) {
+      throw error;
+    }
+    if (originalRequest.url?.includes("/auth/login") || originalRequest.url?.includes("/auth/refresh")) {
+      throw error;
+    }
+    originalRequest._retry = true;
+    const newAccessToken = await refreshAccessToken();
+    if (!newAccessToken) {
+      throw error;
+    }
+    originalRequest.headers.set("Authorization", ["Bearer", newAccessToken].join(" "));
+    return api(originalRequest);
+  }
+);
 
 // ── Generic helpers ──────────────────────────────────────────────────────────
 
@@ -21,6 +136,28 @@ export const updateOne = (path: string, data: unknown) =>
   api.patch(path, data).then((r) => r.data);
 
 export const deleteOne = (path: string) => api.delete(path).then((r) => r.data);
+
+export const downloadFile = async (path: string, filename: string) => {
+  const response = await api.get(path, { responseType: "blob" });
+  const url = window.URL.createObjectURL(response.data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  window.URL.revokeObjectURL(url);
+};
+
+export const authApi = {
+  login: (credentials: { username: string; password: string }) =>
+    authApiClient.post<AuthTokenResponse>("/auth/login", credentials).then((r) => r.data),
+  refresh: (refreshToken?: string) =>
+    authApiClient
+      .post<AuthTokenResponse>("/auth/refresh", refreshToken ? { refresh_token: refreshToken } : {})
+      .then((r) => r.data),
+  logout: (refreshToken?: string) =>
+    authApiClient.post("/auth/logout", refreshToken ? { refresh_token: refreshToken } : {}),
+  me: () => api.get<AuthUser>("/auth/me").then((r) => r.data),
+};
 
 // ── Typed resource helpers ────────────────────────────────────────────────────
 
@@ -73,9 +210,13 @@ export const evidenceApi = {
     const form = new FormData();
     form.append("file", file);
     return api
-      .post(`/evidence/upload?engagement_id=${engagementId}&title=${encodeURIComponent(title)}&evidence_type=${evidenceType}`, form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
+      .post(
+        `/evidence/upload?engagement_id=${engagementId}&title=${encodeURIComponent(title)}&evidence_type=${evidenceType}`,
+        form,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      )
       .then((r) => r.data);
   },
 };

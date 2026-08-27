@@ -68,7 +68,7 @@ bash scripts/dev.sh
 ```
 
 - Backend API: **http://localhost:8765/api/v1**
-- Interactive API docs: **http://localhost:8765/docs**
+- Interactive API docs: **http://localhost:8765/api/docs** (`/docs` redirects here)
 - Frontend (Vite): **http://localhost:5173** (proxies `/api` to backend)
 
 ---
@@ -86,6 +86,10 @@ Key variables:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PENTEST_DASHBOARD_SECRET_KEY` | *(auto-generated)* | Fernet encryption key for credentials |
+| `PENTEST_DASHBOARD_ACCESS_TOKEN_EXPIRE_MINUTES` | `30` | Access token lifetime |
+| `PENTEST_DASHBOARD_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
+| `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_USERNAME` | `admin` | First-run admin username |
+| `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_PASSWORD` | `change-me-now` | First-run admin password |
 | `PENTEST_DASHBOARD_DB_URL` | `sqlite:///data/db/pentest.db` | SQLite database path |
 | `PENTEST_DASHBOARD_HOST` | `0.0.0.0` | Bind address |
 | `PENTEST_DASHBOARD_PORT` | `8765` | Port |
@@ -212,9 +216,11 @@ The container listens on port **8765** and stores data in a named volume.
 
 - Credentials are encrypted at rest using **AES-256-GCM** (Fernet) — the plaintext secret is never stored or logged
 - The encryption key is derived from `PENTEST_DASHBOARD_SECRET_KEY` — keep this value secret
-- Passwords (for future user accounts) are hashed with **Argon2id**
+- Passwords are hashed with **Argon2id**
+- The API uses bearer-token authentication with `POST /api/v1/auth/login` and token refresh with `POST /api/v1/auth/refresh`
+- The first local admin account is bootstrapped from `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_USERNAME` / `PENTEST_DASHBOARD_BOOTSTRAP_ADMIN_PASSWORD`
 - All API responses that include credentials omit the `encrypted_secret` field; use `POST /api/v1/credentials/{id}/reveal` to decrypt on demand
-- The application is designed to run **locally** (loopback or LAN only) — do not expose port 8765 to the internet without adding authentication middleware
+- Keep the bootstrap admin password secret and rotate it immediately after first login
 
 ---
 

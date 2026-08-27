@@ -24,6 +24,8 @@ import {
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
 import { searchApi } from "../../api/client";
+import Button from "../ui/Button";
+import { useAuth } from "../../auth";
 
 const navItems = [
   { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
@@ -49,14 +51,17 @@ interface LayoutProps {
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
+  const isClient = user?.role === "client";
+  const visibleNavItems = navItems.filter((item) => !isClient || item.to === "/findings");
 
   const { data: searchResults } = useQuery({
     queryKey: ["search", searchQuery],
     queryFn: () => searchApi.search(searchQuery),
-    enabled: searchQuery.length >= 2,
+    enabled: !isClient && searchQuery.length >= 2,
   });
 
   return (
@@ -83,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
 
         {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-2">
-          {navItems.map(({ to, icon: Icon, label }) => (
+          {visibleNavItems.map(({ to, icon: Icon, label }) => (
             <NavLink
               key={to}
               to={to}
@@ -108,33 +113,46 @@ export default function Layout({ children }: LayoutProps) {
         {/* Top bar */}
         <header className="flex items-center h-14 px-4 border-b border-gray-800 bg-gray-900 gap-4 flex-shrink-0">
           <div className="relative flex-1 max-w-lg">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
-            <input
-              id="global-search"
-              type="text"
-              placeholder="Search… (Ctrl+K)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-800 text-sm text-gray-100 placeholder-gray-500 pl-8 pr-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-brand-500"
-            />
-            {searchResults && searchResults.length > 0 && searchQuery.length >= 2 && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow-xl z-50 max-h-64 overflow-y-auto">
-                {(searchResults as Array<{ entity_type: string; id: string; title: string; subtitle?: string; url?: string }>).map((r) => (
-                  <button
-                    key={`${r.entity_type}-${r.id}`}
-                    onClick={() => {
-                      navigate(r.url || `/${r.entity_type}s/${r.id}`);
-                      setSearchQuery("");
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700"
-                  >
-                    <span className="text-xs text-gray-400 uppercase w-20 flex-shrink-0">{r.entity_type}</span>
-                    <span className="text-gray-100 truncate">{r.title}</span>
-                    {r.subtitle && <span className="text-gray-500 text-xs ml-auto">{r.subtitle}</span>}
-                  </button>
-                ))}
-              </div>
+            {!isClient && (
+              <>
+                <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  id="global-search"
+                  type="text"
+                  placeholder="Search… (Ctrl+K)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-800 text-sm text-gray-100 placeholder-gray-500 pl-8 pr-3 py-1.5 rounded border border-gray-700 focus:outline-none focus:border-brand-500"
+                />
+                {searchResults && searchResults.length > 0 && searchQuery.length >= 2 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded shadow-xl z-50 max-h-64 overflow-y-auto">
+                    {(searchResults as Array<{ entity_type: string; id: string; title: string; subtitle?: string; url?: string }>).map((r) => (
+                      <button
+                        key={`${r.entity_type}-${r.id}`}
+                        onClick={() => {
+                          navigate(r.url || `/${r.entity_type}s/${r.id}`);
+                          setSearchQuery("");
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-gray-700"
+                      >
+                        <span className="text-xs text-gray-400 uppercase w-20 flex-shrink-0">{r.entity_type}</span>
+                        <span className="text-gray-100 truncate">{r.title}</span>
+                        {r.subtitle && <span className="text-gray-500 text-xs ml-auto">{r.subtitle}</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
+          </div>
+          <div className="flex items-center gap-3 ml-auto">
+            <div className="text-right">
+              <div className="text-sm text-white">{user?.display_name || user?.username}</div>
+              <div className="text-xs text-gray-500">{user?.role.replace(/_/g, " ")}</div>
+            </div>
+            <Button variant="secondary" size="sm" onClick={() => void logout()}>
+              Sign Out
+            </Button>
           </div>
         </header>
 

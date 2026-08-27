@@ -10,6 +10,7 @@ from backend.app.models.finding import Finding, FindingEvidence, FindingTarget, 
 from backend.app.models.link import Link, LinkCollection
 from backend.app.models.note import Note
 from backend.app.models.payload import Payload
+from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.report import Report
 from backend.app.models.scan import ScanImport, ScanResult
 from backend.app.models.scope import ScopeItem
@@ -40,6 +41,7 @@ __all__ = [
     "LinkCollection",
     "Note",
     "Payload",
+    "RefreshToken",
     "Report",
     "ScanImport",
     "ScanResult",

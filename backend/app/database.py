@@ -44,3 +44,6 @@ async def init_db() -> None:
             await conn.execute(__import__("sqlalchemy").text("PRAGMA journal_mode=WAL"))
             await conn.execute(__import__("sqlalchemy").text("PRAGMA foreign_keys=ON"))
         await conn.run_sync(Base.metadata.create_all)
+    from backend.app.auth import ensure_bootstrap_admin
+
+    await ensure_bootstrap_admin()
