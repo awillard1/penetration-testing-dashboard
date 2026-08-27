@@ -1,64 +1,76 @@
 # Operator Gap Analysis
 
 ## Audit Scope
-Full audit of backend models/routes and frontend pages/components covering:
-engagements, clients, targets, hosts/services/endpoints/parameters, findings, evidence, screenshots, credentials, notes, tasks, commands, payloads, scans, jobs, HTTP messages, methodology, footholds, reports, links/resources, activity/audit events, files/artifacts, and cross-entity relationships.
+Complete audit of frontend pages, backend API routes, schemas, models, and cross-entity relationships for:
+engagements, clients, targets, hosts, services, endpoints, parameters, findings, evidence, screenshots, credentials, notes, tasks, commands, payloads, scans, jobs, HTTP messages, methodology, footholds, reports, links/resources, activity events, files/artifacts.
 
-## Summary
-The project now has strong foundations for operator workflows (workspace aggregation, command execution controls, jobs, methodology, ingest normalization), but still had critical usability gaps where records were difficult to act on end-to-end in the UI.
+## Audit Matrix (UI-Meaningful Workflow)
 
-## High-Priority Gaps Found
+| Entity/Page | Existing Capabilities | Gaps Found During Audit |
+|---|---|---|
+| Clients | Create/list/delete backend support | No dedicated detail workflow in UI; weak relationship navigation to engagements |
+| Engagements | List/create + summary | Detail page was mostly read-only and lacked full edit lifecycle |
+| Targets | CRUD + workspace entry | Some edits still modal-heavy and not inline for fast operator workflows |
+| Findings | Good list + detail edit/delete | Needs deeper cross-entity quick-create paths from more surfaces |
+| Evidence | Now strong detail/preview/download/edit/delete + finding association | Additional cross-association targets still pending (endpoint/methodology/credential/job/scan) |
+| Credentials | Create/list/reveal/delete | Missing robust edit/manage flow and confirmations (fixed in this iteration) |
+| Notes | Create/edit/delete usable | Could use richer link/pivoting from related entities |
+| Tasks | CRUD and status updates | Checklist/deep workflow still limited |
+| Commands/Payloads | CRUD and usage tracking | Could add richer operator pivots to jobs/findings |
+| Scans | Upload/list/delete | Missing operator detail/review flow for import outcomes and errors (fixed in this iteration) |
+| Jobs | Basic status table | Missing actionable stop/detail/stdout-stderr workflow (fixed in this iteration) |
+| Activity | Read-only timeline list | Needs stronger filtering and direct related-object navigation |
+| Reports | Generate/list/download/delete | Limited review/regeneration workflow |
 
-### 1) Evidence Lifecycle Was Incomplete
-- Evidence list existed, but detail-level operation was limited.
-- Weak support for inline preview/download/open from operator flow.
-- Minimal association workflows from evidence to findings/targets.
-- No unified detail pane for metadata edit + preview + navigation.
+## Earlier Remediation (Completed)
+- Evidence security and usability upgrades:
+  - secure path resolution under configured evidence directory
+  - `/api/v1/evidence/{id}/file` inline/download + HTTP Range
+  - `/api/v1/evidence/{id}/detail` and `/api/v1/evidence/{id}/preview`
+  - evidence↔finding attach/detach endpoints
+  - rebuilt Evidence UI list+detail with metadata editing, preview, and download
 
-### 2) CRUD Consistency Gaps Across Pages
-- Several pages mixed list-only and modal-only patterns, causing dead-end navigation.
-- Inconsistent row click behavior and missing “open detail” paths.
-- Not all mutations surfaced explicit error feedback.
+## This Iteration Remediation (Completed)
 
-### 3) Relationship Navigation Gaps
-- Cross-linking between findings/evidence/targets/jobs/scans was uneven.
-- Related-object traversal required too much page switching in some paths.
+### 1) Engagement Detail CRUD Usability
+- Rebuilt engagement detail into full operator edit workflow:
+  - View/Edit/Save/Cancel
+  - Delete with confirmation
+  - Success/error notifications
+  - Editable status/type/dates/tester/scope/ROE/authorization notes
 
-### 4) Preview/Artifact Usability Gaps
-- Text artifact handling lacked operator-friendly pretty/raw workflows.
-- No consistent handling for preview fallback on unsupported binaries.
+### 2) Credentials Operational Manageability
+- Upgraded credentials page with:
+  - search/filter
+  - edit modal for metadata and validation state
+  - delete confirmation
+  - explicit reveal + copy behavior
+  - improved timestamps/visibility of record state
 
-### 5) Security/Delivery Gaps for File Retrieval
-- Needed stronger documented guarantees around safe file resolution and path constraints.
-- Range-friendly delivery and explicit disposition control needed to support larger artifacts and embedded previews.
+### 3) Scans Detail and Import Review Flow
+- Added backend scan detail and update capabilities:
+  - `GET /api/v1/scans/{id}/detail` (metadata, error log, parsed results)
+  - `PATCH /api/v1/scans/{id}` (notes update)
+- Rebuilt scan UI with clickable rows and detail modal:
+  - parsed result visibility
+  - error log visibility
+  - notes edit/save
+  - delete with confirmation
 
-## Gap Remediation Implemented In This Iteration
+### 4) Jobs Console Usability
+- Rebuilt jobs page to support meaningful operator control:
+  - status filters + text search
+  - row detail modal
+  - stdout/stderr visibility
+  - explicit stop action for running jobs
+  - ongoing refresh for live operations
 
-### Evidence Backend
-- Added secure file resolution guardrails under configured evidence directory.
-- Added `/api/v1/evidence/{id}/file` with inline/download behavior and Range support.
-- Added `/api/v1/evidence/{id}/detail` for operator-centric metadata + association state.
-- Added `/api/v1/evidence/{id}/preview` for image/pdf/text/binary preview classification.
-- Added evidence↔finding association endpoints (attach/detach).
-- Added search query support to evidence listing.
-
-### Evidence Frontend
-- Rebuilt Evidence page as list + detail work surface.
-- Added clickable rows, detail editor, save/delete with confirmation.
-- Added inline preview experience (image, PDF, text pretty/raw, binary fallback).
-- Added download/open/copy-ID actions.
-- Added finding association attach/detach from evidence detail panel.
-- Added explicit toast error handling for create/update/delete/association failures.
-
-## Remaining Gaps (Next Iterations)
-- Broader entity-by-entity CRUD parity pass (especially deep detail/edit patterns for all operator entities).
-- Full target-centric operational tabs for every requested domain (loot/files, footholds, attack paths, etc.) with complete editability.
-- Unified global command palette/search and quick capture depth expansion.
-- Complete recon diff workflow and stronger per-link provenance visualization.
-- More complete retest and reviewer workflow UI.
-- Broader test expansion for all new operator pages and association flows.
+## Remaining High-Priority Gaps
+1. Complete deep association workflows from evidence to endpoint/methodology/credential/job/scan.
+2. Expand target workspace tabs into fully editable high-density operational surfaces for all requested domains.
+3. Strengthen global search/command palette and quick capture coverage.
+4. Add stronger activity timeline filtering and related-object drill-through.
+5. Improve report review/retest workflows and advanced correlation surfaces.
 
 ## Acceptance Workflow Impact
-This iteration directly improves the critical workflow segment:
-- upload evidence → open/preview/download evidence → edit metadata → associate to finding → navigate related objects,
-reducing dead ends and external-tool dependence in daily testing operations.
+This pass removes several major dead ends in day-to-day operation by making engagements, credentials, scans, and jobs materially actionable in-place, reducing context switches and external tooling.

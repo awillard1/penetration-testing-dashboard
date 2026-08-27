@@ -352,3 +352,27 @@ async def test_evidence_finding_association_attach_detach(client: AsyncClient):
 
     detail_after = await client.get(f"/api/v1/evidence/{evidence_id}/detail")
     assert finding_id not in detail_after.json()["finding_ids"]
+
+
+@pytest.mark.asyncio
+async def test_scan_detail_and_update_notes(client: AsyncClient):
+    er = await client.post("/api/v1/engagements", json={"name": "Scan Detail Eng"})
+    eng_id = er.json()["id"]
+
+    files = {"file": ("scan.json", b'{"scanner":"custom","results":[]}', "application/json")}
+    uploaded = await client.post(f"/api/v1/scans/upload?engagement_id={eng_id}", files=files)
+    assert uploaded.status_code == 201
+    scan_id = uploaded.json()["id"]
+
+    detail = await client.get(f"/api/v1/scans/{scan_id}/detail")
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["id"] == scan_id
+    assert "results" in body
+
+    updated = await client.patch(f"/api/v1/scans/{scan_id}", json={"notes": "Review this import"})
+    assert updated.status_code == 200
+
+    detail_after = await client.get(f"/api/v1/scans/{scan_id}/detail")
+    assert detail_after.status_code == 200
+    assert detail_after.json()["notes"] == "Review this import"

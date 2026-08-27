@@ -29,6 +29,10 @@ The current codebase includes a practical operator-grade expansion foundation:
   - direct open/download actions,
   - finding association attach/detach,
   - explicit mutation error notifications.
+- Added engagement detail operator edit flow (full metadata updates + delete confirmation).
+- Upgraded credentials UX with search, edit modal, validation metadata editing, reveal/copy, and delete confirmation.
+- Added scan detail workflow (`GET /scans/{id}/detail`, `PATCH /scans/{id}`) and scan UI detail modal with import error/result visibility.
+- Upgraded jobs page into operational console with status filtering, run detail inspection, stdout/stderr view, and stop action.
 
 
 

@@ -21,8 +21,10 @@ A local-first penetration test engagement management platform. Built with FastAP
 - **Methodology Coverage** — Web/API/Network/AD/Cloud/Mobile/Wireless checklist tracking
 - **Operator Command Runner** — explicit preview/edit/confirm execution with scope checks and job history
 - **Jobs Dashboard** — running/completed/failed/stopped process tracking with runtime and output
+- **Jobs Operations Console** — status filtering, run detail inspection (stdout/stderr), and explicit stop actions for running jobs
 - **HTTP Evidence Inspector Foundation** — captured request/response records with sensitive-header masking
 - **Evidence Operations Workspace** — searchable evidence list with detail editing, inline preview, download/open, and finding association controls
+- **Scan Import Detail Workflow** — inspect import metadata/error logs/parsed results and update operator notes
 - **Burp Ingest Foundation** — API path to send request/response traffic into targets/endpoints/evidence/finding candidates
 - **Generic Normalization Importer** — adaptable JSON import path for ffuf/ferox/gobuster/openvas/hashcat-style records
 

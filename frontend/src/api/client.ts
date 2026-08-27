@@ -143,6 +143,9 @@ export const payloadsApi = {
 
 export const scansApi = {
   list: (params?: object) => getList("/scans", params as Record<string, unknown>),
+  get: (id: string) => getOne(`/scans/${id}`),
+  detail: (id: string) => getOne(`/scans/${id}/detail`),
+  update: (id: string, data: unknown) => updateOne(`/scans/${id}`, data),
   upload: (engagementId: string, file: File) => {
     const form = new FormData();
     form.append("file", file);

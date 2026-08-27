@@ -5,15 +5,21 @@ import hashlib
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.config import settings
 from backend.app.database import get_session
-from backend.app.models.scan import ScanImport
+from backend.app.models.scan import ScanImport, ScanResult
 from backend.app.schemas.schemas import ScanImportRead
-from backend.app.utils.crud import create_obj, delete_obj, get_by_id, list_all
+from backend.app.utils.crud import create_obj, delete_obj, get_by_id, list_all, update_obj
 
 router = APIRouter()
+
+
+class ScanImportUpdateBody(BaseModel):
+    notes: str | None = None
 
 @router.get("", response_model=list[ScanImportRead])
 async def list_scans(
@@ -106,6 +112,57 @@ async def get_scan(scan_id: str, session: AsyncSession = Depends(get_session)):
     if not obj:
         raise HTTPException(404, "Scan not found")
     return obj
+
+
+@router.get("/{scan_id}/detail")
+async def get_scan_detail(scan_id: str, session: AsyncSession = Depends(get_session)):
+    obj = await get_by_id(session, ScanImport, scan_id)
+    if not obj:
+        raise HTTPException(404, "Scan not found")
+
+    results = (
+        await session.execute(
+            select(ScanResult).where(ScanResult.scan_import_id == scan_id).order_by(ScanResult.created_at.desc()).limit(200)
+        )
+    ).scalars().all()
+    return {
+        "id": obj.id,
+        "engagement_id": obj.engagement_id,
+        "filename": obj.filename,
+        "scan_type": obj.scan_type,
+        "status": obj.status,
+        "sha256": obj.sha256,
+        "imported_targets": obj.imported_targets,
+        "imported_findings": obj.imported_findings,
+        "error_count": obj.error_count,
+        "error_log": obj.error_log,
+        "notes": obj.notes,
+        "imported_at": obj.imported_at,
+        "created_at": obj.created_at,
+        "updated_at": obj.updated_at,
+        "results": [
+            {
+                "id": row.id,
+                "result_type": row.result_type,
+                "title": row.title,
+                "severity": row.severity,
+                "target_id": row.target_id,
+                "finding_id": row.finding_id,
+                "is_duplicate": row.is_duplicate,
+                "data_json": row.data_json,
+                "created_at": row.created_at,
+            }
+            for row in results
+        ],
+    }
+
+
+@router.patch("/{scan_id}", response_model=ScanImportRead)
+async def update_scan(scan_id: str, body: ScanImportUpdateBody, session: AsyncSession = Depends(get_session)):
+    obj = await get_by_id(session, ScanImport, scan_id)
+    if not obj:
+        raise HTTPException(404, "Scan not found")
+    return await update_obj(session, obj, body.model_dump(exclude_unset=True))
 
 @router.delete("/{scan_id}", status_code=204)
 async def delete_scan(scan_id: str, session: AsyncSession = Depends(get_session)):
