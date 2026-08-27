@@ -4,17 +4,19 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
 import EvidencePage from "./EvidencePage";
 
-const mockEvidenceApi = {
-  list: vi.fn(),
-  detail: vi.fn(),
-  preview: vi.fn(),
-  create: vi.fn(),
-  upload: vi.fn(),
-  update: vi.fn(),
-  remove: vi.fn(),
-  attachToFinding: vi.fn(),
-  detachFromFinding: vi.fn(),
-};
+const { mockEvidenceApi } = vi.hoisted(() => ({
+  mockEvidenceApi: {
+    list: vi.fn(),
+    detail: vi.fn(),
+    preview: vi.fn(),
+    create: vi.fn(),
+    upload: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    attachToFinding: vi.fn(),
+    detachFromFinding: vi.fn(),
+  },
+}));
 
 vi.mock("../api/client", () => ({
   evidenceApi: mockEvidenceApi,

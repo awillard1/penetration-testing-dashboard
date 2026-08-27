@@ -25,6 +25,7 @@ type EvidenceListItem = {
 type EvidenceDetail = EvidenceListItem & {
   description?: string;
   notes?: string;
+  tags?: string;
   engagement_id: string;
   preview_kind: "none" | "image" | "pdf" | "text" | "binary";
   file_exists: boolean;
@@ -100,7 +101,7 @@ export default function EvidencePage() {
       target_id: detail.target_id || "",
       tags: detail.tags || "",
     });
-  }, [detail?.id]);
+  }, [detail]);
 
   const uploadMut = useMutation({
     mutationFn: () => (file ? evidenceApi.upload(form.engagement_id, form.title, form.evidence_type, file) : evidenceApi.create(form)),

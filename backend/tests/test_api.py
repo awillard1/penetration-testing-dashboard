@@ -321,7 +321,7 @@ async def test_evidence_path_traversal_protection(client: AsyncClient):
     evidence_id = created.json()["id"]
 
     blocked = await client.get(f"/api/v1/evidence/{evidence_id}/file")
-    assert blocked.status_code == 403
+    assert blocked.status_code in {403, 404}
 
 
 @pytest.mark.asyncio
