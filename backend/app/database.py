@@ -47,4 +47,7 @@ async def init_db() -> None:
     alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
     alembic_cfg = Config(str(alembic_ini))
     alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
-    command.upgrade(alembic_cfg, "head")
+    
+    # Import and run migrations directly in the current async context
+    from backend.alembic.env import run_async_migrations
+    await run_async_migrations()
