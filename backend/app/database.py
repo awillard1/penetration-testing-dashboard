@@ -1,6 +1,8 @@
 """Database initialization and session management."""
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -35,43 +37,16 @@ async def get_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
-async def _run_async_migrations() -> None:
-    """Run Alembic migrations asynchronously."""
+def _run_migrations_sync() -> None:
+    """Run Alembic migrations synchronously."""
     import backend.app.models  # noqa: F401 - register all models
-    from backend.app.models.base import Base
-    from sqlalchemy.ext.asyncio import async_engine_from_config
     from alembic.config import Config
-    from alembic.migration import MigrationContext
-    from alembic.operations import Operations
+    from alembic import command
 
-    url = _db_url
-    if url.startswith("sqlite:///") and not url.startswith("sqlite+aiosqlite:///"):
-        url = url.replace("sqlite:///", "sqlite+aiosqlite:///", 1)
-
-    connectable = async_engine_from_config(
-        {"sqlalchemy.url": url},
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
-
-    async with connectable.connect() as connection:
-        def do_run_migrations(conn):
-            # Create migration context with the connection
-            migration_ctx = MigrationContext.configure(conn, target_metadata=Base.metadata)
-            operations = Operations(migration_ctx)
-            
-            # Stamp the database with the latest revision
-            # This checks if migrations need to be run and applies them
-            alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
-            alembic_cfg = Config(str(alembic_ini))
-            alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
-            
-            from alembic import command
-            command.upgrade(alembic_cfg, "head")
-
-        await connection.run_sync(do_run_migrations)
-
-    await connectable.dispose()
+    alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(alembic_cfg, "head")
 
 
 async def init_db() -> None:
@@ -82,4 +57,7 @@ async def init_db() -> None:
             await conn.execute(text("PRAGMA journal_mode=WAL"))
             await conn.execute(text("PRAGMA foreign_keys=ON"))
 
-    await _run_async_migrations()
+    # Run migrations in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        await loop.run_in_executor(executor, _run_migrations_sync)
