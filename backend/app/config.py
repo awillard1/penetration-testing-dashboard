@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     watcher_enabled: bool = True
     backup_retention: int = 30
     open_browser: bool = True
+    operator_command_runner_enabled: bool = True
+    operator_burp_ingest_enabled: bool = True
 
     def ensure_dirs(self) -> None:
         for d in [

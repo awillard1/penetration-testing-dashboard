@@ -6,6 +6,7 @@ import Modal from "../components/ui/Modal";
 import { Input, Select } from "../components/ui/Input";
 import { Settings, Save, HardDrive, Folder, Plus, Trash2, CheckCircle, Loader2, Download } from "lucide-react";
 import toast from "react-hot-toast";
+import RunnersPanel from "../components/settings/RunnersPanel";
 
 export default function SettingsPage() {
   const qc = useQueryClient();
@@ -116,6 +117,8 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <RunnersPanel />
+
       {showWatchModal && (
         <Modal title="Add Watch Path" onClose={() => setShowWatchModal(false)}>
           <div className="space-y-3">
@@ -129,6 +132,7 @@ export default function SettingsPage() {
           </div>
         </Modal>
       )}
+
     </div>
   );
 }

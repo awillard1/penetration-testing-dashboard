@@ -1,13 +1,16 @@
 """Database initialization and session management."""
 from __future__ import annotations
 
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from typing import AsyncIterator
 
+from sqlalchemy import pool, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
 from backend.app.config import settings
-from backend.app.models.base import Base
 
 # Ensure aiosqlite is available for SQLite async
 _db_url = settings.database_url
@@ -34,13 +37,27 @@ async def get_session() -> AsyncIterator[AsyncSession]:
             raise
 
 
-async def init_db() -> None:
-    """Create tables for all models."""
-    import backend.app.models  # noqa: F401 – register all models
+def _run_migrations_sync() -> None:
+    """Run Alembic migrations synchronously."""
+    import backend.app.models  # noqa: F401 - register all models
+    from alembic.config import Config
+    from alembic import command
 
+    alembic_ini = Path(__file__).resolve().parents[2] / "alembic.ini"
+    alembic_cfg = Config(str(alembic_ini))
+    alembic_cfg.set_main_option("sqlalchemy.url", settings.database_url)
+    command.upgrade(alembic_cfg, "head")
+
+
+async def init_db() -> None:
+    """Initialize database pragmas and apply Alembic migrations."""
     async with engine.begin() as conn:
         # Enable WAL mode and foreign keys for SQLite
         if "sqlite" in _db_url:
-            await conn.execute(__import__("sqlalchemy").text("PRAGMA journal_mode=WAL"))
-            await conn.execute(__import__("sqlalchemy").text("PRAGMA foreign_keys=ON"))
-        await conn.run_sync(Base.metadata.create_all)
+            await conn.execute(text("PRAGMA journal_mode=WAL"))
+            await conn.execute(text("PRAGMA foreign_keys=ON"))
+
+    # Run migrations in a thread pool to avoid blocking the event loop
+    loop = asyncio.get_event_loop()
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        await loop.run_in_executor(executor, _run_migrations_sync)

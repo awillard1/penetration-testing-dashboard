@@ -6,9 +6,11 @@ import Modal from "../components/ui/Modal";
 import { Input, Select } from "../components/ui/Input";
 import { Plus, Trash2 } from "lucide-react";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function TargetsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [filterEng, setFilterEng] = useState("");
   const [form, setForm] = useState({ engagement_id: "", hostname: "", ip_address: "", port: "", protocol: "tcp", url: "", environment: "production" });
@@ -39,9 +41,13 @@ export default function TargetsPage() {
         <table className="w-full text-sm">
           <thead><tr className="border-b border-gray-800 text-xs text-gray-400">{["Hostname","IP","Port","Protocol","Environment","Scope",""].map(h => <th key={h} className="text-left px-3 py-2">{h}</th>)}</tr></thead>
           <tbody>
-            {(targets as Array<{ id: string; hostname?: string; ip_address?: string; port?: number; protocol?: string; environment?: string; in_scope: boolean }>).map(t => (
+            {(targets as Array<{ id: string; hostname?: string; ip_address?: string; url?: string; port?: number; protocol?: string; environment?: string; engagement_id?: string; in_scope: boolean }>).map(t => (
               <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
-                <td className="px-3 py-2 text-brand-400">{t.hostname || "—"}</td>
+                <td className="px-3 py-2 text-brand-400">
+                  <button className="hover:underline" onClick={() => navigate(`/workspace/${t.id}?engagementId=${t.engagement_id || ""}`)}>
+                    {t.hostname || t.url || t.ip_address || "Open Workspace"}
+                  </button>
+                </td>
                 <td className="px-3 py-2 text-gray-300">{t.ip_address || "—"}</td>
                 <td className="px-3 py-2 text-gray-300">{t.port || "—"}</td>
                 <td className="px-3 py-2 text-gray-400">{t.protocol || "—"}</td>

@@ -8,8 +8,10 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from backend.app.models import Base  # noqa: F401  registers all models
+import backend.app.models  # noqa: F401  register all models
+from backend.app.models.base import Base
 
+# Only access context at migration time, not module-load time
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)

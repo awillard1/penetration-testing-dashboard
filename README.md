@@ -17,6 +17,41 @@ A local-first penetration test engagement management platform. Built with FastAP
 - **Scheduled Backups** — daily ZIP backup of the SQLite database
 - **File Watcher** — monitor directories for new scan files (watchdog)
 - **Dashboard** — summary stats and severity chart
+- **Target Workspace** — target-centric operational cockpit (hosts/services/endpoints/coverage/evidence/jobs)
+- **Methodology Coverage** — Web/API/Network/AD/Cloud/Mobile/Wireless checklist tracking
+- **Operator Command Runner** — explicit preview/edit/confirm execution with scope checks and job history
+- **Jobs Dashboard** — running/completed/failed/stopped process tracking with runtime and output
+- **Jobs Operations Console** — status filtering, run detail inspection (stdout/stderr), and explicit stop actions for running jobs
+- **External Runner Architecture (Phase Foundation)** — queued jobs are executed by a separate runner service (`runner/runner_service.py`) instead of FastAPI-owned subprocesses
+- **HTTP Evidence Inspector Foundation** — captured request/response records with sensitive-header masking
+- **Evidence Operations Workspace** — searchable evidence list with detail editing, inline preview, download/open, and finding association controls
+- **Scan Import Detail Workflow** — inspect import metadata/error logs/parsed results and update operator notes
+- **Burp Ingest Foundation** — API path to send request/response traffic into targets/endpoints/evidence/finding candidates
+- **Generic Normalization Importer** — adaptable JSON import path for ffuf/ferox/gobuster/openvas/hashcat-style records
+
+---
+
+## Tool Inventory Scripts
+
+Use the provided scripts to verify/install common operator tools:
+
+```bash
+./scripts/check-tools.sh
+./scripts/install-tools.sh --projectdiscovery
+./scripts/install-tools.sh --web
+./scripts/install-tools.sh --network
+./scripts/install-tools.sh --code
+./scripts/install-tools.sh --cracking
+./scripts/install-tools.sh --all
+```
+
+PowerShell:
+
+```powershell
+.\scripts\check-tools.ps1
+.\scripts\install-tools.ps1 -projectdiscovery
+.\scripts\install-tools.ps1 -all
+```
 
 ---
 
@@ -73,6 +108,17 @@ bash scripts/dev.sh
 
 ---
 
+## Operator Planning Docs
+
+- `OPERATOR_GAP_ANALYSIS.md` — audited functionality gaps and remediation status
+- `OPERATOR_WORKFLOWS.md` — operator-centric daily workflow map
+- `ARCHITECTURE.md` — current architecture and near-term evolution
+- `docs/IMPLEMENTATION_GAP_AUDIT.md` — completion classification (COMPLETE/PARTIAL/MISSING/BROKEN/BACKEND ONLY/FRONTEND ONLY)
+- `docs/RUNNER_INSTALLATION.md` — runner setup, registration, and troubleshooting
+- `docs/BURP_EXTENSION_INSTALLATION.md` — Burp extension build/load/configure instructions
+
+---
+
 ## Configuration
 
 Copy `.env.example` to `.env` and edit as needed:
@@ -91,6 +137,8 @@ Key variables:
 | `PENTEST_DASHBOARD_PORT` | `8765` | Port |
 | `PENTEST_DASHBOARD_DATA_DIR` | `data` | Root data directory |
 | `PENTEST_DASHBOARD_BACKUP_RETENTION_DAYS` | `30` | Days to keep backups |
+| `PENTEST_DASHBOARD_OPERATOR_COMMAND_RUNNER_ENABLED` | `true` | Enable explicit-confirm command execution subsystem |
+| `PENTEST_DASHBOARD_OPERATOR_BURP_INGEST_ENABLED` | `true` | Enable Burp ingest foundation endpoint |
 
 > **Note**: The database is a local SQLite file — no external services required.
 
@@ -121,8 +169,17 @@ Upload scan files via **Scans** → **Upload Scan File**.
 | Nuclei | `.jsonl`, `.json` | ✓ |
 | ffuf | `.json` | ✓ |
 | Burp Suite | `.xml` | ✓ |
+| Generic JSON adapter | `.json`, `.jsonl` | ✓ |
 
 Use scan type **"auto"** to let the importer detect the format from file content.
+
+Generic adapter records can include keys like:
+
+`url`, `host`, `path`, `method`, `query_params`, `body_params`, `status_code`, `content_type`, `auth_requirement`, `tool`, `discovered_by`
+
+to normalize into:
+
+`Host -> Service -> URL -> Endpoint -> Parameter`.
 
 ---
 
@@ -215,6 +272,17 @@ The container listens on port **8765** and stores data in a named volume.
 - Passwords (for future user accounts) are hashed with **Argon2id**
 - All API responses that include credentials omit the `encrypted_secret` field; use `POST /api/v1/credentials/{id}/reveal` to decrypt on demand
 - The application is designed to run **locally** (loopback or LAN only) — do not expose port 8765 to the internet without adding authentication middleware
+- Command execution is **explicit-operator only** (`preview -> edit -> confirm -> run`) and persists audit fields for scope warnings/overrides
+- Burp ingest and command execution enforce scope checks and require explicit override reason when proceeding out of scope
+- Current process stop controls are in-memory per app process; for reliable stop behavior run the command runner in single-worker mode
+
+---
+
+## Migration / Upgrade Notes
+
+- This release adds operator tables (workspace inventory, methodology, command runs, HTTP messages, checklists, footholds, and relationship metadata).
+- The default runtime migration path is automatic table creation on startup (`Base.metadata.create_all`); existing data remains compatible.
+- Existing entities (targets/findings/evidence/credentials/scans) remain unchanged and are now correlated into the operator workspace where possible.
 
 ---
 

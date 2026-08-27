@@ -1,11 +1,15 @@
 """Nmap XML importer."""
 from __future__ import annotations
+
 import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.models.base import utcnow
 from backend.app.models.scan import ScanImport, ScanResult
 from backend.app.models.target import Target
+from backend.app.services.operator_assets import get_or_create_host, get_or_create_service
 from backend.app.utils.crud import create_obj
-from backend.app.models.base import utcnow
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +42,16 @@ async def import_nmap(session: AsyncSession, scan_import: ScanImport, content: b
                 "last_seen": utcnow(),
             }
             await create_obj(session, Target, data)
+            await get_or_create_host(
+                session,
+                engagement_id=scan_import.engagement_id,
+                target_id=None,
+                hostname=hostname,
+                ip_address=ip,
+                operating_system=os_name,
+                source_tool="nmap",
+                discovered_by="nmap_import",
+            )
             await create_obj(session, ScanResult, {
                 "scan_import_id": scan_import.id,
                 "result_type": "host",
@@ -66,6 +80,26 @@ async def import_nmap(session: AsyncSession, scan_import: ScanImport, content: b
                     "last_seen": utcnow(),
                 }
                 await create_obj(session, Target, data)
+                host_row = await get_or_create_host(
+                    session,
+                    engagement_id=scan_import.engagement_id,
+                    target_id=None,
+                    hostname=hostname,
+                    ip_address=ip,
+                    operating_system=os_name,
+                    source_tool="nmap",
+                    discovered_by="nmap_import",
+                )
+                await get_or_create_service(
+                    session,
+                    engagement_id=scan_import.engagement_id,
+                    host_id=host_row.id,
+                    port=portid,
+                    protocol=protocol,
+                    service_name=service_name or None,
+                    source_tool="nmap",
+                    discovered_by="nmap_import",
+                )
                 target_count += 1
 
     scan_import.status = "complete"

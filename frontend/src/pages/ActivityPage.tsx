@@ -34,7 +34,7 @@ function parseApiDate(input: string | number): Date {
   const raw = (input || "").trim();
   if (!raw) return new Date(NaN);
 
-  const hasExplicitTz = /([zZ]|[+\-]\d{2}:\d{2})$/.test(raw);
+  const hasExplicitTz = /([zZ]|[+-]\d{2}:\d{2})$/.test(raw);
   if (hasExplicitTz) return new Date(raw);
 
   const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
