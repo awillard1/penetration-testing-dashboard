@@ -4,7 +4,7 @@ import { Loader2, Shield } from "lucide-react";
 import toast from "react-hot-toast";
 import Button from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import { useAuth } from "../auth";
+import { useAuth } from "../useAuth";
 
 export default function LoginPage() {
   const { isAuthenticated, login } = useAuth();

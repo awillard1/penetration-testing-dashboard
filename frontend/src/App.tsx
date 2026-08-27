@@ -1,7 +1,7 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useEffect } from "react";
 import Layout from "./components/layout/Layout";
-import { useAuth } from "./auth";
+import { useAuth } from "./useAuth";
 import DashboardPage from "./pages/DashboardPage";
 import EngagementsPage from "./pages/EngagementsPage";
 import EngagementDetailPage from "./pages/EngagementDetailPage";

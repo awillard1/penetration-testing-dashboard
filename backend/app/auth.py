@@ -26,6 +26,10 @@ from backend.app.security import (
 
 bearer_scheme = HTTPBearer(auto_error=False)
 PUBLIC_API_PATHS = {
+    "/api",
+    "/api/",
+    "/api/v1",
+    "/api/v1/",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
     "/api/v1/auth/logout",
@@ -36,6 +40,12 @@ STAFF_ROLES = {"admin", "penetration_tester"}
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _coerce_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def extract_access_token(request: Request) -> str | None:
@@ -128,7 +138,7 @@ async def consume_refresh_token(session: AsyncSession, refresh_token: str) -> Us
     if (
         not token_row
         or token_row.revoked_at is not None
-        or token_row.expires_at <= _utcnow()
+        or _coerce_utc(token_row.expires_at) <= _utcnow()
     ):
         raise HTTPException(status_code=401, detail="Invalid refresh token")
     token_row.revoked_at = _utcnow()
