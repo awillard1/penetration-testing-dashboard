@@ -146,7 +146,7 @@ export const downloadFile = async (path: string, filename: string) => {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  window.URL.revokeObjectURL(url);
+  window.setTimeout(() => window.URL.revokeObjectURL(url), 100);
 };
 
 export const authApi = {
